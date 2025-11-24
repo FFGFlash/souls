@@ -1,0 +1,52 @@
+local StarterPlayer = game:GetService("StarterPlayer")
+local UserInputService = game:GetService("UserInputService")
+local StateMachineService = require(StarterPlayer.StarterPlayerScripts.Client.Services.StateMachineService)
+
+local IdleState: StateMachineService.State<Context> = {
+	AllowedTransitions = {
+		Walking = true,
+		Rolling = true,
+	},
+}
+
+export type Context = {
+	IdleAnimation: AnimationTrack,
+	CharacterController: typeof(require(StarterPlayer.StarterPlayerScripts.Client.Services.CharacterControllerService)),
+}
+
+function IdleState:OnEnter(context)
+	context.CharacterController:SetCapability("Movement", false)
+	context.CharacterController:SetCapability("Rotation", false)
+
+	local animationTrack = context.CharacterController:LoadAnimation("rbxassetid://76157679289795")
+	if animationTrack then
+		context.IdleAnimation = animationTrack
+		animationTrack:Play()
+	else
+		warn("Failed to load idle animation")
+	end
+end
+
+function IdleState:OnUpdate()
+	local moving = UserInputService:IsKeyDown(Enum.KeyCode.W)
+		or UserInputService:IsKeyDown(Enum.KeyCode.A)
+		or UserInputService:IsKeyDown(Enum.KeyCode.S)
+		or UserInputService:IsKeyDown(Enum.KeyCode.D)
+
+	if moving then
+		self:Switch("Walking")
+	end
+
+	if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+		self:Switch("Rolling")
+	end
+end
+
+function IdleState:OnExit(context)
+	if context.IdleAnimation then
+		context.IdleAnimation:Stop()
+		context.IdleAnimation = nil
+	end
+end
+
+return IdleState

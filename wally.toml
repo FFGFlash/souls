@@ -5,3 +5,5 @@ registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 
 [dependencies]
+Gizmo = "tmpxyz/imgizmo@3.6.0"
+Signal = "stravant/goodsignal@0.3.1"
