@@ -5,6 +5,7 @@ local CharacterControllerService = require(script.Services.CharacterControllerSe
 local StateMachineService = require(script.Services.StateMachineService)
 local FallingState = require(script.States.FallingState)
 local IdleState = require(script.States.IdleState)
+local LandingState = require(script.States.LandingState)
 local RollingState = require(script.States.RollingState)
 local WalkingState = require(script.States.WalkingState)
 
@@ -25,6 +26,7 @@ StateMachineService:AddState("Idle", IdleState)
 StateMachineService:AddState("Walking", WalkingState)
 StateMachineService:AddState("Rolling", RollingState)
 StateMachineService:AddState("Falling", FallingState)
+StateMachineService:AddState("Landing", LandingState)
 
 StateMachineService:AddServices({
 	Camera = CameraService,

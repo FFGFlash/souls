@@ -59,7 +59,7 @@ function RollingState:OnEnter(context)
 	context.CharacterController:SetForcedVelocity(dashDirection * 100)
 
 	context.StartTime = tick()
-	context.Duration = 0.5
+	context.Duration = context.RollForward.Length
 
 	local dotProduct = dashDirection:Dot(lookDirection)
 	local angle = math.atan2(dashDirection:Cross(lookDirection).Y, dotProduct)

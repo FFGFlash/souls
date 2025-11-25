@@ -3,6 +3,7 @@ local StateMachineService = require(StarterPlayer.StarterPlayerScripts.Client.Se
 
 local FallingState: StateMachineService.State<Context> = {
 	AllowedTransitions = {
+		Landing = true,
 		Idle = true,
 	},
 }
@@ -10,6 +11,7 @@ local FallingState: StateMachineService.State<Context> = {
 export type Context = {
 	FallingAnimation: AnimationTrack,
 	CharacterController: typeof(require(StarterPlayer.StarterPlayerScripts.Client.Services.CharacterControllerService)),
+	StartVector: Vector3,
 }
 
 function FallingState:OnPreload(context)
@@ -23,6 +25,8 @@ function FallingState:OnEnter(context)
 	context.CharacterController:SetCapability("Movement", true)
 	context.CharacterController:SetCapability("Rotation", true)
 
+	context.StartVector = context.CharacterController.Root.Position
+
 	if context.FallingAnimation then
 		context.FallingAnimation:Play()
 	end
@@ -30,7 +34,12 @@ end
 
 function FallingState:OnUpdate(context)
 	if context.CharacterController:IsGrounded() then
-		self:Switch("Idle")
+		local distance = (context.StartVector.Y - context.CharacterController.Root.Position.Y)
+		if distance < 10 then
+			self:Switch("Idle")
+			return
+		end
+		self:Switch("Landing")
 		return
 	end
 end
