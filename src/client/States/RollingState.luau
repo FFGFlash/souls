@@ -45,20 +45,16 @@ function RollingState:OnEnter(context)
 	context.RollLeft = context.CharacterController:LoadAnimation("rbxassetid://111645930805390")
 	context.RollRight = context.CharacterController:LoadAnimation("rbxassetid://79227688280429")
 
-	local movementDirection = context.CharacterController.Movement.MoveDirection
-	local lookVector = context.CharacterController.Root.CFrame.LookVector
-	local dotProduct = movementDirection:Dot(lookVector)
-	local angle = math.atan2(movementDirection:Cross(lookVector).Y, dotProduct)
+	local dotProduct = dashDirection:Dot(lookDirection)
+	local angle = math.atan2(dashDirection:Cross(lookDirection).Y, dotProduct)
 
 	local forwardWeight = CalculateAnimationWeight(angle, 0)
 	local backwardWeight = CalculateAnimationWeight(angle, math.pi)
 	local leftWeight = CalculateAnimationWeight(angle, -math.pi / 2)
 	local rightWeight = CalculateAnimationWeight(angle, math.pi / 2)
 
-	print(backwardWeight)
-
 	-- Backward animation doesn't play nice with the other animations
-	if backwardWeight > 0.5 then
+	if backwardWeight > 0.4 then
 		if not context.RollBackward then
 			warn("Failed to load RollBackward animation")
 		else
