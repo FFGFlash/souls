@@ -3,6 +3,7 @@ local StarterPlayer = game:GetService("StarterPlayer")
 local CameraService = require(script.Services.CameraService)
 local CharacterControllerService = require(script.Services.CharacterControllerService)
 local StateMachineService = require(script.Services.StateMachineService)
+local FallingState = require(script.States.FallingState)
 local IdleState = require(script.States.IdleState)
 local RollingState = require(script.States.RollingState)
 local WalkingState = require(script.States.WalkingState)
@@ -23,6 +24,7 @@ end)
 StateMachineService:AddState("Idle", IdleState)
 StateMachineService:AddState("Walking", WalkingState)
 StateMachineService:AddState("Rolling", RollingState)
+StateMachineService:AddState("Falling", FallingState)
 
 StateMachineService:AddServices({
 	Camera = CameraService,

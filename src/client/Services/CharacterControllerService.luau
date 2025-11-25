@@ -59,7 +59,7 @@ CharacterControllerService.Rotation = {
 -- PHYSICS PROPERTIES
 -- ===========================
 CharacterControllerService.Physics = {
-	Gravity = 50,
+	Gravity = workspace.Gravity, -- studs/second^2
 	TerminalVelocity = 150,
 	VerticalVelocity = 0,
 
@@ -385,7 +385,7 @@ function CharacterControllerService.Update(self: CharacterControllerService, dt:
 
 			self.Physics.VerticalVelocity = verticalVelocity
 		else
-			self.Physics.VerticalVelocity -= self.Physics.Gravity * dt
+			self.Physics.VerticalVelocity -= math.sqrt(self.Root.AssemblyMass * self.Physics.Gravity) * dt
 			self.Physics.VerticalVelocity = math.max(self.Physics.VerticalVelocity, -self.Physics.TerminalVelocity)
 			verticalVelocity = self.Physics.VerticalVelocity
 		end

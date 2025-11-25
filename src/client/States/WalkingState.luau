@@ -2,10 +2,21 @@ local StarterPlayer = game:GetService("StarterPlayer")
 local UserInputService = game:GetService("UserInputService")
 local StateMachineService = require(StarterPlayer.StarterPlayerScripts.Client.Services.StateMachineService)
 
+local function CalculateAnimationWeight(moveAngle: number, referenceAngle: number)
+	local pi2 = math.pi * 2
+	local pi = math.pi
+	local diff = moveAngle - referenceAngle
+	local wrap = (diff % pi2 + pi2) % pi2
+	local short = math.min(wrap, pi2 - wrap)
+	local weight = 1 - (short / (pi / 2))
+	return math.clamp(weight, 0, 1)
+end
+
 local WalkingState: StateMachineService.State<Context> = {
 	AllowedTransitions = {
 		Idle = true,
 		Rolling = true,
+		Falling = true,
 	},
 }
 
@@ -16,34 +27,6 @@ export type Context = {
 	WalkRight: AnimationTrack?,
 	CharacterController: typeof(require(StarterPlayer.StarterPlayerScripts.Client.Services.CharacterControllerService)),
 }
-
-function WalkingState:OnEnter(context)
-	context.CharacterController:SetCapability("Movement", true)
-	context.CharacterController:SetCapability("Rotation", true)
-
-	if context.WalkForward then
-		context.WalkForward:Play(nil, 0)
-	end
-	if context.WalkBackward then
-		context.WalkBackward:Play(nil, 0)
-	end
-	if context.WalkLeft then
-		context.WalkLeft:Play(nil, 0)
-	end
-	if context.WalkRight then
-		context.WalkRight:Play(nil, 0)
-	end
-end
-
-local function CalculateAnimationWeight(moveAngle: number, referenceAngle: number)
-	local pi2 = math.pi * 2
-	local pi = math.pi
-	local diff = moveAngle - referenceAngle
-	local wrap = (diff % pi2 + pi2) % pi2
-	local short = math.min(wrap, pi2 - wrap)
-	local weight = 1 - (short / (pi / 2))
-	return math.clamp(weight, 0, 1)
-end
 
 function WalkingState:OnPreload(context)
 	context.WalkForward = context.CharacterController:LoadAnimation("rbxassetid://138931819291565")
@@ -65,12 +48,31 @@ function WalkingState:OnPreload(context)
 	end
 end
 
+function WalkingState:OnEnter(context)
+	context.CharacterController:SetCapability("Movement", true)
+	context.CharacterController:SetCapability("Rotation", true)
+
+	if context.WalkForward then
+		context.WalkForward:Play(nil, 0)
+	end
+	if context.WalkBackward then
+		context.WalkBackward:Play(nil, 0)
+	end
+	if context.WalkLeft then
+		context.WalkLeft:Play(nil, 0)
+	end
+	if context.WalkRight then
+		context.WalkRight:Play(nil, 0)
+	end
+end
+
 function WalkingState:OnUpdate(context)
-	local moving = UserInputService:IsKeyDown(Enum.KeyCode.W)
-		or UserInputService:IsKeyDown(Enum.KeyCode.A)
-		or UserInputService:IsKeyDown(Enum.KeyCode.S)
-		or UserInputService:IsKeyDown(Enum.KeyCode.D)
-		or context.CharacterController.Movement.CurrentSpeed > 0.5
+	if not context.CharacterController:IsGrounded() then
+		self:Switch("Falling")
+		return
+	end
+
+	local moving = context.CharacterController:IsMoving()
 
 	if not moving then
 		self:Switch("Idle")

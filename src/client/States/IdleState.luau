@@ -6,6 +6,7 @@ local IdleState: StateMachineService.State<Context> = {
 	AllowedTransitions = {
 		Walking = true,
 		Rolling = true,
+		Falling = true,
 	},
 }
 
@@ -30,7 +31,12 @@ function IdleState:OnEnter(context)
 	end
 end
 
-function IdleState:OnUpdate()
+function IdleState:OnUpdate(context)
+	if not context.CharacterController:IsGrounded() then
+		self:Switch("Falling")
+		return
+	end
+
 	local moving = UserInputService:IsKeyDown(Enum.KeyCode.W)
 		or UserInputService:IsKeyDown(Enum.KeyCode.A)
 		or UserInputService:IsKeyDown(Enum.KeyCode.S)
@@ -38,17 +44,18 @@ function IdleState:OnUpdate()
 
 	if moving then
 		self:Switch("Walking")
+		return
 	end
 
 	if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
 		self:Switch("Rolling")
+		return
 	end
 end
 
 function IdleState:OnExit(context)
 	if context.IdleAnimation then
 		context.IdleAnimation:Stop()
-		context.IdleAnimation = nil
 	end
 end
 
