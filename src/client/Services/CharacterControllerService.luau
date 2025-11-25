@@ -64,7 +64,7 @@ CharacterControllerService.Physics = {
 	VerticalVelocity = 0,
 
 	IsGrounded = false,
-	GroundRayLength = 3.5,
+	GroundRayLength = 4,
 	GroundRayOffset = -0.1,
 	GroundNormal = Vector3.yAxis,
 
