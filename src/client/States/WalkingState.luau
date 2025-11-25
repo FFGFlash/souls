@@ -21,29 +21,16 @@ function WalkingState:OnEnter(context)
 	context.CharacterController:SetCapability("Movement", true)
 	context.CharacterController:SetCapability("Rotation", true)
 
-	context.WalkForward = context.CharacterController:LoadAnimation("rbxassetid://138931819291565")
-	context.WalkBackward = context.CharacterController:LoadAnimation("rbxassetid://83837749541337")
-	context.WalkLeft = context.CharacterController:LoadAnimation("rbxassetid://122445318045440")
-	context.WalkRight = context.CharacterController:LoadAnimation("rbxassetid://83644651265136")
-
-	if not context.WalkForward then
-		warn("Failed to load walkForward animation")
-	else
+	if context.WalkForward then
 		context.WalkForward:Play(nil, 0)
 	end
-	if not context.WalkBackward then
-		warn("Failed to load walkBackward animation")
-	else
+	if context.WalkBackward then
 		context.WalkBackward:Play(nil, 0)
 	end
-	if not context.WalkLeft then
-		warn("Failed to load walkLeft animation")
-	else
+	if context.WalkLeft then
 		context.WalkLeft:Play(nil, 0)
 	end
-	if not context.WalkRight then
-		warn("Failed to load walkRight animation")
-	else
+	if context.WalkRight then
 		context.WalkRight:Play(nil, 0)
 	end
 end
@@ -56,6 +43,26 @@ local function CalculateAnimationWeight(moveAngle: number, referenceAngle: numbe
 	local short = math.min(wrap, pi2 - wrap)
 	local weight = 1 - (short / (pi / 2))
 	return math.clamp(weight, 0, 1)
+end
+
+function WalkingState:OnPreload(context)
+	context.WalkForward = context.CharacterController:LoadAnimation("rbxassetid://138931819291565")
+	context.WalkBackward = context.CharacterController:LoadAnimation("rbxassetid://83837749541337")
+	context.WalkLeft = context.CharacterController:LoadAnimation("rbxassetid://122445318045440")
+	context.WalkRight = context.CharacterController:LoadAnimation("rbxassetid://83644651265136")
+
+	if not context.WalkForward then
+		warn("Failed to load WalkForward animation")
+	end
+	if not context.WalkBackward then
+		warn("Failed to load WalkBackward animation")
+	end
+	if not context.WalkLeft then
+		warn("Failed to load WalkLeft animation")
+	end
+	if not context.WalkRight then
+		warn("Failed to load WalkRight animation")
+	end
 end
 
 function WalkingState:OnUpdate(context)

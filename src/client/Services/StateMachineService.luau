@@ -34,9 +34,7 @@ end
 
 function StateMachineService:ClearContext()
 	self.Context = {}
-	for key, value in pairs(self.Services) do
-		self.Context[key] = value
-	end
+	self:LoadContext()
 end
 
 function StateMachineService:Switch(to: string)
@@ -65,8 +63,33 @@ function StateMachineService:Switch(to: string)
 	return true
 end
 
+function StateMachineService:LoadContext(context)
+	if not context then
+		context = self.Context
+	end
+	local currentState = self:GetActiveState()
+	if currentState.Context then
+		for key, value in pairs(currentState.Context) do
+			context[key] = value
+		end
+	end
+	for key, value in pairs(self.Services) do
+		context[key] = value
+	end
+end
+
 function StateMachineService:Init()
 	self:ClearContext()
+
+	for _, state in pairs(self.States) do
+		if state.OnPreload then
+			if not state.Context then
+				state.Context = {}
+			end
+			self:LoadContext(state.Context)
+			state.OnPreload(self, state.Context)
+		end
+	end
 
 	local current = self:GetActiveState()
 	if current then
@@ -84,9 +107,11 @@ end
 export type StateMachineService = typeof(StateMachineService)
 
 export type State<T> = {
+	OnPreload: ((self: StateMachineService, context: T) -> ())?,
 	OnEnter: ((self: StateMachineService, context: T) -> ())?,
 	OnUpdate: ((self: StateMachineService, context: T, dt: number) -> ())?,
 	OnExit: ((self: StateMachineService, context: T) -> ())?,
+	Context: T?,
 	AllowedTransitions: { [string]: boolean }?,
 }
 

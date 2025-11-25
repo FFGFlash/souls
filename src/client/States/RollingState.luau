@@ -27,9 +27,30 @@ local function CalculateAnimationWeight(moveAngle: number, referenceAngle: numbe
 	return math.clamp(weight, 0, 1)
 end
 
+function RollingState:OnPreload(context)
+	context.RollForward = context.CharacterController:LoadAnimation("rbxassetid://77858067445742")
+	context.RollBackward = context.CharacterController:LoadAnimation("rbxassetid://132546627104511")
+	context.RollLeft = context.CharacterController:LoadAnimation("rbxassetid://111645930805390")
+	context.RollRight = context.CharacterController:LoadAnimation("rbxassetid://79227688280429")
+
+	if not context.RollForward then
+		warn("Failed to load RollForward animation")
+	end
+	if not context.RollBackward then
+		warn("Failed to load RollBackward animation")
+	end
+	if not context.RollLeft then
+		warn("Failed to load RollLeft animation")
+	end
+	if not context.RollRight then
+		warn("Failed to load RollRight animation")
+	end
+end
+
 function RollingState:OnEnter(context)
 	context.CharacterController:SetCapability("Movement", false)
 	context.CharacterController:SetCapability("Rotation", false)
+	context.CharacterController:SetCapability("GroundAlignment", false)
 
 	local moveDirection = context.CharacterController.Movement.MoveDirection
 	local lookDirection = context.CharacterController.Root.CFrame.LookVector
@@ -39,11 +60,6 @@ function RollingState:OnEnter(context)
 
 	context.StartTime = tick()
 	context.Duration = 0.5
-
-	context.RollForward = context.CharacterController:LoadAnimation("rbxassetid://77858067445742")
-	context.RollBackward = context.CharacterController:LoadAnimation("rbxassetid://132546627104511")
-	context.RollLeft = context.CharacterController:LoadAnimation("rbxassetid://111645930805390")
-	context.RollRight = context.CharacterController:LoadAnimation("rbxassetid://79227688280429")
 
 	local dotProduct = dashDirection:Dot(lookDirection)
 	local angle = math.atan2(dashDirection:Cross(lookDirection).Y, dotProduct)
@@ -55,25 +71,17 @@ function RollingState:OnEnter(context)
 
 	-- Backward animation doesn't play nice with the other animations
 	if backwardWeight > 0.4 then
-		if not context.RollBackward then
-			warn("Failed to load RollBackward animation")
-		else
+		if context.RollBackward then
 			context.RollBackward:Play(nil, backwardWeight)
 		end
 	else
-		if not context.RollForward then
-			warn("Failed to load RollForward animation")
-		else
+		if context.RollForward then
 			context.RollForward:Play(nil, forwardWeight)
 		end
-		if not context.RollLeft then
-			warn("Failed to load RollLeft animation")
-		else
+		if context.RollLeft then
 			context.RollLeft:Play(nil, leftWeight)
 		end
-		if not context.RollRight then
-			warn("Failed to load RollRight animation")
-		else
+		if context.RollRight then
 			context.RollRight:Play(nil, rightWeight)
 		end
 	end
@@ -86,8 +94,10 @@ function RollingState:OnUpdate(context)
 end
 
 function RollingState:OnExit(context)
+	context.CharacterController:StopAnimations()
 	context.CharacterController:SetCapability("Movement", true)
 	context.CharacterController:SetCapability("Rotation", true)
+	context.CharacterController:SetCapability("GroundAlignment", true)
 	context.CharacterController:SetForcedVelocity(nil)
 end
 

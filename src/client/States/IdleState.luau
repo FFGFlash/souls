@@ -14,16 +14,19 @@ export type Context = {
 	CharacterController: typeof(require(StarterPlayer.StarterPlayerScripts.Client.Services.CharacterControllerService)),
 }
 
+function IdleState:OnPreload(context)
+	context.IdleAnimation = context.CharacterController:LoadAnimation("rbxassetid://76157679289795")
+	if not context.IdleAnimation then
+		warn("Failed to load idle animation")
+	end
+end
+
 function IdleState:OnEnter(context)
 	context.CharacterController:SetCapability("Movement", false)
 	context.CharacterController:SetCapability("Rotation", false)
 
-	local animationTrack = context.CharacterController:LoadAnimation("rbxassetid://76157679289795")
-	if animationTrack then
-		context.IdleAnimation = animationTrack
-		animationTrack:Play()
-	else
-		warn("Failed to load idle animation")
+	if context.IdleAnimation then
+		context.IdleAnimation:Play()
 	end
 end
 

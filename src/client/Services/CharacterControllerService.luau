@@ -15,6 +15,7 @@ CharacterControllerService.Capabilities = {
 	Rotation = true,
 	Gravity = true,
 	GroundDetection = true,
+	GroundAlignment = true,
 	Debug = RunService:IsStudio(),
 }
 
@@ -48,6 +49,10 @@ CharacterControllerService.Rotation = {
 	FaceMovementDirection = true,
 	LockToCamera = true,
 	TargetYaw = nil :: number?,
+
+	GroundAlignmentSpeed = 12,
+	CurrentYaw = 0,
+	CurrentTilt = CFrame.identity,
 }
 
 -- ===========================
@@ -141,7 +146,29 @@ local function performGroundCheck(root: Part, character: Model): (boolean, Vecto
 	return false, Vector3.yAxis
 end
 
-local function checkStepUp(root: Part, velocity: Vector3)
+local function calculateGroundTilt(yaw: number, groundNormal: Vector3): CFrame
+	local desiredForward = Vector3.new(-math.sin(yaw), 0, -math.cos(yaw))
+
+	local right = desiredForward:Cross(groundNormal)
+	if right.Magnitude < 0.001 then
+		right = Vector3.new(1, 0, 0):Cross(groundNormal)
+		if right.Magnitude < 0.001 then
+			right = Vector3.new(0, 0, 1):Cross(groundNormal)
+		end
+	end
+	right = right.Unit
+
+	local forward = groundNormal:Cross(right).Unit
+
+	local alignedCF = CFrame.fromMatrix(Vector3.zero, right, groundNormal, -forward)
+
+	local yawRemoval = CFrame.Angles(0, -yaw, 0)
+	local tiltOnly = yawRemoval * alignedCF
+
+	return tiltOnly
+end
+
+local function checkStepUp(root: Part, velocity: Vector3, character: Model)
 	if velocity.Magnitude < 0.1 then
 		return
 	end
@@ -149,21 +176,26 @@ local function checkStepUp(root: Part, velocity: Vector3)
 	local lookDirection = velocity.Unit
 	local stepHeight = 2.0
 	local checkDistance = 1.5
+	local maxStepAngle = math.rad(50)
 
 	local params = RaycastParams.new()
-	params.FilterDescendantsInstances = { root.Parent }
+	params.FilterDescendantsInstances = { character }
 	params.FilterType = Enum.RaycastFilterType.Exclude
 
 	local bottomOrigin = root.Position - Vector3.new(0, 2.8, 0)
 	local bottomRay = workspace:Raycast(bottomOrigin, lookDirection * checkDistance, params)
 
 	if bottomRay then
+		local surfaceAngle = math.acos(bottomRay.Normal:Dot(Vector3.yAxis))
+		if surfaceAngle < maxStepAngle then
+			return
+		end
+
 		local topOrigin = bottomOrigin + Vector3.new(0, stepHeight, 0)
 		local topRay = workspace:Raycast(topOrigin, lookDirection * checkDistance * 1.1, params)
 
 		if not topRay then
-			-- root.Position = root.Position + Vector3.new(0, 0.5, 0)
-			root.CFrame = root.CFrame + (lookDirection * 0.2) + Vector3.new(0, 0.5, 0)
+			root.CFrame = root.CFrame + Vector3.new(0, 0.5, 0)
 		end
 	end
 end
@@ -205,6 +237,9 @@ function CharacterControllerService.Init(self: CharacterControllerService)
 
 		self.Physics.VerticalVelocity = 0
 		self.Physics.IsGrounded = false
+
+		self.Rotation.CurrentYaw = math.rad(self.Root.Orientation.Y)
+		self.Rotation.CurrentTilt = CFrame.identity
 	end
 
 	local character = player.Character or player.CharacterAdded:Wait()
@@ -307,14 +342,25 @@ function CharacterControllerService.Update(self: CharacterControllerService, dt:
 		end
 
 		if targetYaw then
-			local currentYaw = math.rad(self.Root.Orientation.Y)
-			local deltaYaw = shortestRotation(currentYaw, targetYaw)
+			local deltaYaw = shortestRotation(self.Rotation.CurrentYaw, targetYaw)
 			local rotationSpeed = math.min(self.Rotation.TurnSpeed * dt, math.abs(deltaYaw))
-			local newYaw = currentYaw + math.sign(deltaYaw) * rotationSpeed
-
-			self.Root.CFrame = CFrame.new(self.Root.Position) * CFrame.Angles(0, newYaw, 0)
+			self.Rotation.CurrentYaw = self.Rotation.CurrentYaw + math.sign(deltaYaw) * rotationSpeed
 		end
 	end
+
+	local targetTilt
+	if self.Capabilities.GroundAlignment and self.Physics.IsGrounded then
+		targetTilt = calculateGroundTilt(self.Rotation.CurrentYaw, self.Physics.GroundNormal)
+	else
+		targetTilt = CFrame.identity
+	end
+
+	local alpha = math.min(self.Rotation.GroundAlignmentSpeed * dt, 1)
+	self.Rotation.CurrentTilt = self.Rotation.CurrentTilt:Lerp(targetTilt, alpha)
+
+	local currentPosition = self.Root.Position
+	local yawRotation = CFrame.Angles(0, self.Rotation.CurrentYaw, 0)
+	self.Root.CFrame = CFrame.new(currentPosition) * yawRotation * self.Rotation.CurrentTilt
 
 	local verticalVelocity = 0
 
@@ -348,11 +394,10 @@ function CharacterControllerService.Update(self: CharacterControllerService, dt:
 	local finalVelocity3D = Vector3.new(finalVelocity.X, verticalVelocity, finalVelocity.Z)
 
 	if self.Physics.IsGrounded then
-		checkStepUp(self.Root, Vector3.new(finalVelocity3D.X, 0, finalVelocity3D.Z))
+		checkStepUp(self.Root, Vector3.new(finalVelocity3D.X, 0, finalVelocity3D.Z), self.Character)
 	end
 
 	self.Root.AssemblyLinearVelocity = finalVelocity3D
-
 	self.Root.AssemblyAngularVelocity = Vector3.zero
 end
 
@@ -375,6 +420,11 @@ function CharacterControllerService.Render(self: CharacterControllerService, _dt
 	Gizmo.PushProperty("Color3", Color3.new(0, 1, 0))
 
 	Gizmo.Ray:Draw(self.Root.Position, self.Root.Position + self.Root.AssemblyLinearVelocity)
+
+	if self.Physics.IsGrounded then
+		Gizmo.PushProperty("Color3", Color3.new(1, 1, 0))
+		Gizmo.Ray:Draw(self.Root.Position, self.Root.Position + self.Physics.GroundNormal * 3)
+	end
 
 	local bottomOrigin = self.Root.Position - Vector3.new(0, 2.8, 0)
 	local topOrigin = bottomOrigin + Vector3.new(0, 2.0, 0)
@@ -453,13 +503,10 @@ end
 -- ANIMATION CONTROLS
 -- ===========================
 
-function CharacterControllerService.LoadAnimation(
-	self: CharacterControllerService,
-	animationId: string
-): AnimationTrack?
-	if not self.Animator then
-		return nil
-	end
+function CharacterControllerService.LoadAnimation(self: CharacterControllerService, animationId: string): AnimationTrack
+	repeat
+		wait()
+	until self.Animator
 	local animation = Instance.new("Animation")
 	animation.AnimationId = animationId
 	return self.Animator:LoadAnimation(animation)
