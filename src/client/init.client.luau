@@ -1,42 +1,29 @@
-local Players = game:GetService("Players")
-local StarterPlayer = game:GetService("StarterPlayer")
-local CameraService = require(script.Services.CameraService)
-local CharacterControllerService = require(script.Services.CharacterControllerService)
-local PlayerAnimationControllerService = require(script.Services.PlayerAnimationControllerService)
-local StateMachineService = require(script.Services.StateMachineService)
-local FallingState = require(script.States.FallingState)
-local IdleState = require(script.States.IdleState)
-local LandingState = require(script.States.LandingState)
-local RollingState = require(script.States.RollingState)
-local WalkingState = require(script.States.WalkingState)
+local ControllersFolder = script:WaitForChild("Controllers")
 
-StarterPlayer.EnableMouseLockOption = false
-StarterPlayer.DevComputerMovementMode = Enum.DevComputerMovementMode.Scriptable
+local Controllers = {}
 
-local player = Players.LocalPlayer
-
-player.CharacterAdded:Connect(function()
-	local playerScripts = player:WaitForChild("PlayerScripts")
-	local playerModule = playerScripts:FindFirstChild("PlayerModule")
-	if playerModule then
-		playerModule:Destroy()
+print("Loading Controllers...")
+for _, module in ipairs(ControllersFolder:GetChildren()) do
+	if module:IsA("ModuleScript") then
+		local controller = require(module)
+		Controllers[module.Name] = controller
 	end
-end)
+end
 
-StateMachineService:AddState("Idle", IdleState)
-StateMachineService:AddState("Walking", WalkingState)
-StateMachineService:AddState("Rolling", RollingState)
-StateMachineService:AddState("Falling", FallingState)
-StateMachineService:AddState("Landing", LandingState)
+print("Initializing Controllers...")
+for _, controller in pairs(Controllers) do
+	if controller.Init then
+		controller:Init(Controllers)
+	end
+end
 
-StateMachineService:AddServices({
-	Camera = CameraService,
-	CharacterController = CharacterControllerService,
-	StateMachine = StateMachineService,
-	PlayerAnimationController = PlayerAnimationControllerService,
-})
+print("Starting Controllers...")
+for _, controller in pairs(Controllers) do
+	if controller.Start then
+		task.spawn(function()
+			controller:Start()
+		end)
+	end
+end
 
-PlayerAnimationControllerService:Init()
-CameraService:Init()
-CharacterControllerService:Init()
-StateMachineService:Init()
+print("Client Started")
