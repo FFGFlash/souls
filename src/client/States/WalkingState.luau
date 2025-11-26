@@ -21,48 +21,33 @@ local WalkingState: StateMachineService.State<Context> = {
 }
 
 export type Context = {
-	WalkForward: AnimationTrack?,
-	WalkBackward: AnimationTrack?,
-	WalkLeft: AnimationTrack?,
-	WalkRight: AnimationTrack?,
 	CharacterController: typeof(require(StarterPlayer.StarterPlayerScripts.Client.Services.CharacterControllerService)),
+	PlayerAnimationController: typeof(require(
+		StarterPlayer.StarterPlayerScripts.Client.Services.PlayerAnimationControllerService
+	)),
+	AnimationTracks: { AnimationTrack },
 }
 
 function WalkingState:OnPreload(context)
-	context.WalkForward = context.CharacterController:LoadAnimation("rbxassetid://138931819291565")
-	context.WalkBackward = context.CharacterController:LoadAnimation("rbxassetid://83837749541337")
-	context.WalkLeft = context.CharacterController:LoadAnimation("rbxassetid://122445318045440")
-	context.WalkRight = context.CharacterController:LoadAnimation("rbxassetid://83644651265136")
-
-	if not context.WalkForward then
-		warn("Failed to load WalkForward animation")
-	end
-	if not context.WalkBackward then
-		warn("Failed to load WalkBackward animation")
-	end
-	if not context.WalkLeft then
-		warn("Failed to load WalkLeft animation")
-	end
-	if not context.WalkRight then
-		warn("Failed to load WalkRight animation")
-	end
+	context.PlayerAnimationController:LoadAnimation("WalkForward", "rbxassetid://138931819291565")
+	context.PlayerAnimationController:LoadAnimation("WalkBackward", "rbxassetid://83837749541337")
+	context.PlayerAnimationController:LoadAnimation("WalkLeft", "rbxassetid://122445318045440")
+	context.PlayerAnimationController:LoadAnimation("WalkRight", "rbxassetid://83644651265136")
 end
 
 function WalkingState:OnEnter(context)
 	context.CharacterController:SetCapability("Movement", true)
 	context.CharacterController:SetCapability("Rotation", true)
 
-	if context.WalkForward then
-		context.WalkForward:Play(nil, 0)
-	end
-	if context.WalkBackward then
-		context.WalkBackward:Play(nil, 0)
-	end
-	if context.WalkLeft then
-		context.WalkLeft:Play(nil, 0)
-	end
-	if context.WalkRight then
-		context.WalkRight:Play(nil, 0)
+	context.AnimationTracks = {
+		context.PlayerAnimationController:GetTrack("WalkForward"),
+		context.PlayerAnimationController:GetTrack("WalkRight"),
+		context.PlayerAnimationController:GetTrack("WalkBackward"),
+		context.PlayerAnimationController:GetTrack("WalkLeft"),
+	}
+
+	for _, track in context.AnimationTracks do
+		track:Play(nil, 0)
 	end
 end
 
@@ -89,27 +74,14 @@ function WalkingState:OnUpdate(context)
 	local dotProduct = movementDirection:Dot(lookVector)
 	local angle = math.atan2(movementDirection:Cross(lookVector).Y, dotProduct)
 
-	local forwardWeight = CalculateAnimationWeight(angle, 0)
-	local backwardWeight = CalculateAnimationWeight(angle, math.pi)
-	local leftWeight = CalculateAnimationWeight(angle, -math.pi / 2)
-	local rightWeight = CalculateAnimationWeight(angle, math.pi / 2)
-
-	if context.WalkForward then
-		context.WalkForward:AdjustWeight(forwardWeight)
-	end
-	if context.WalkBackward then
-		context.WalkBackward:AdjustWeight(backwardWeight)
-	end
-	if context.WalkLeft then
-		context.WalkLeft:AdjustWeight(leftWeight)
-	end
-	if context.WalkRight then
-		context.WalkRight:AdjustWeight(rightWeight)
+	for i, track in ipairs(context.AnimationTracks) do
+		local weight = CalculateAnimationWeight(angle, (-math.pi / 2) + (math.pi / 2) * i)
+		track:AdjustWeight(weight)
 	end
 end
 
 function WalkingState:OnExit(context)
-	context.CharacterController:StopAnimations()
+	context.PlayerAnimationController:StopAll()
 end
 
 return WalkingState

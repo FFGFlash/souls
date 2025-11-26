@@ -9,16 +9,15 @@ local FallingState: StateMachineService.State<Context> = {
 }
 
 export type Context = {
-	FallingAnimation: AnimationTrack,
+	PlayerAnimationController: typeof(require(
+		StarterPlayer.StarterPlayerScripts.Client.Services.PlayerAnimationControllerService
+	)),
 	CharacterController: typeof(require(StarterPlayer.StarterPlayerScripts.Client.Services.CharacterControllerService)),
 	StartVector: Vector3,
 }
 
 function FallingState:OnPreload(context)
-	context.FallingAnimation = context.CharacterController:LoadAnimation("rbxassetid://127538891225329")
-	if not context.FallingAnimation then
-		warn("Failed to load Falling animation")
-	end
+	context.PlayerAnimationController:LoadAnimation("Falling", "rbxassetid://127538891225329")
 end
 
 function FallingState:OnEnter(context)
@@ -27,9 +26,7 @@ function FallingState:OnEnter(context)
 
 	context.StartVector = context.CharacterController.Root.Position
 
-	if context.FallingAnimation then
-		context.FallingAnimation:Play()
-	end
+	context.PlayerAnimationController:GetTrack("Falling"):Play()
 end
 
 function FallingState:OnUpdate(context)
@@ -45,9 +42,7 @@ function FallingState:OnUpdate(context)
 end
 
 function FallingState:OnExit(context)
-	if context.FallingAnimation then
-		context.FallingAnimation:Stop()
-	end
+	context.PlayerAnimationController:StopAll()
 end
 
 return FallingState

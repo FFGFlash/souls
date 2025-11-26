@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local StarterPlayer = game:GetService("StarterPlayer")
 local CameraService = require(script.Services.CameraService)
 local CharacterControllerService = require(script.Services.CharacterControllerService)
+local PlayerAnimationControllerService = require(script.Services.PlayerAnimationControllerService)
 local StateMachineService = require(script.Services.StateMachineService)
 local FallingState = require(script.States.FallingState)
 local IdleState = require(script.States.IdleState)
@@ -32,8 +33,10 @@ StateMachineService:AddServices({
 	Camera = CameraService,
 	CharacterController = CharacterControllerService,
 	StateMachine = StateMachineService,
+	PlayerAnimationController = PlayerAnimationControllerService,
 })
 
+PlayerAnimationControllerService:Init()
 CameraService:Init()
 CharacterControllerService:Init()
 StateMachineService:Init()

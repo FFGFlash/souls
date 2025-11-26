@@ -8,17 +8,16 @@ local LandingState: StateMachineService.State<Context> = {
 }
 
 export type Context = {
-	LandingAnimation: AnimationTrack,
+	PlayerAnimationController: typeof(require(
+		StarterPlayer.StarterPlayerScripts.Client.Services.PlayerAnimationControllerService
+	)),
 	CharacterController: typeof(require(StarterPlayer.StarterPlayerScripts.Client.Services.CharacterControllerService)),
 	StartTime: number,
 	Duration: number,
 }
 
 function LandingState:OnPreload(context)
-	context.LandingAnimation = context.CharacterController:LoadAnimation("rbxassetid://80044599499576")
-	if not context.LandingAnimation then
-		warn("Failed to load Falling animation")
-	end
+	context.PlayerAnimationController:LoadAnimation("Landing", "rbxassetid://80044599499576")
 end
 
 function LandingState:OnEnter(context)
@@ -28,9 +27,7 @@ function LandingState:OnEnter(context)
 	context.StartTime = tick()
 	context.Duration = 1
 
-	if context.LandingAnimation then
-		context.LandingAnimation:Play()
-	end
+	context.PlayerAnimationController:GetTrack("Landing"):Play()
 end
 
 function LandingState:OnUpdate(context)
@@ -41,12 +38,10 @@ function LandingState:OnUpdate(context)
 end
 
 function LandingState:OnExit(context)
+	context.PlayerAnimationController:StopAll()
+
 	context.CharacterController:SetCapability("Movement", true)
 	context.CharacterController:SetCapability("Rotation", true)
-
-	if context.LandingAnimation then
-		context.LandingAnimation:Stop()
-	end
 end
 
 return LandingState

@@ -13,22 +13,20 @@ local IdleState: StateMachineService.State<Context> = {
 export type Context = {
 	IdleAnimation: AnimationTrack,
 	CharacterController: typeof(require(StarterPlayer.StarterPlayerScripts.Client.Services.CharacterControllerService)),
+	PlayerAnimationController: typeof(require(
+		StarterPlayer.StarterPlayerScripts.Client.Services.PlayerAnimationControllerService
+	)),
 }
 
 function IdleState:OnPreload(context)
-	context.IdleAnimation = context.CharacterController:LoadAnimation("rbxassetid://76157679289795")
-	if not context.IdleAnimation then
-		warn("Failed to load idle animation")
-	end
+	context.PlayerAnimationController:LoadAnimation("Idle", "rbxassetid://76157679289795")
 end
 
 function IdleState:OnEnter(context)
 	context.CharacterController:SetCapability("Movement", false)
 	context.CharacterController:SetCapability("Rotation", false)
 
-	if context.IdleAnimation then
-		context.IdleAnimation:Play()
-	end
+	context.PlayerAnimationController:GetTrack("Idle"):Play()
 end
 
 function IdleState:OnUpdate(context)
@@ -54,9 +52,7 @@ function IdleState:OnUpdate(context)
 end
 
 function IdleState:OnExit(context)
-	if context.IdleAnimation then
-		context.IdleAnimation:Stop()
-	end
+	context.PlayerAnimationController:StopAll()
 end
 
 return IdleState

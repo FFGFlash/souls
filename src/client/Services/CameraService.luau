@@ -41,6 +41,7 @@ function CameraService:Init()
 
 	camera.CameraType = Enum.CameraType.Scriptable
 	UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+	UserInputService.MouseIconEnabled = false
 
 	RunService.RenderStepped:Connect(function(dt)
 		self:Update(dt)

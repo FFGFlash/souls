@@ -5,6 +5,7 @@ local StateMachineService = {
 	States = {},
 	Context = {},
 	Services = {},
+	PauseUpdates = false,
 }
 
 function StateMachineService:AddState<T>(name: string, config: State<T>)
@@ -47,6 +48,8 @@ function StateMachineService:Switch(to: string)
 		return false
 	end
 
+	self.PauseUpdates = true
+
 	local old = self:GetActiveState()
 	if old and old.OnExit then
 		old.OnExit(self, self.Context)
@@ -59,6 +62,8 @@ function StateMachineService:Switch(to: string)
 	if new and new.OnEnter then
 		new.OnEnter(self, self.Context)
 	end
+
+	self.PauseUpdates = false
 
 	return true
 end
@@ -97,6 +102,9 @@ function StateMachineService:Init()
 	end
 
 	RunService.Heartbeat:Connect(function(dt)
+		if self.PauseUpdates then
+			return
+		end
 		local state = self:GetActiveState()
 		if state and state.OnUpdate then
 			state.OnUpdate(self, self.Context, dt)
