@@ -303,7 +303,7 @@ CharacterController.FSM = StateMachine.new(CharacterController, {
 				return
 			end
 
-			local movementDirection = host.Movement.MoveDirection
+			local movementDirection = host.Movement.LastMoveDirection
 			local lookVector = host.Root.CFrame.LookVector
 			local dotProduct = movementDirection:Dot(lookVector)
 			local angle = math.atan2(movementDirection:Cross(lookVector).Y, dotProduct)
