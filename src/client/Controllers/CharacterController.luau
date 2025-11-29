@@ -4,7 +4,6 @@ local RunService = game:GetService("RunService")
 local StarterPlayer = game:GetService("StarterPlayer")
 local UserInputService = game:GetService("UserInputService")
 local Gizmo = require(ReplicatedStorage.Packages.Gizmo)
-local StateMachine = require(ReplicatedStorage.Shared.StateMachine)
 
 local CharacterController = {}
 export type CharacterController = typeof(CharacterController)
@@ -117,16 +116,6 @@ CharacterController.AntiGravity = nil :: VectorForce?
 -- ===========================
 -- PRIVATE FUNCTIONS
 -- ===========================
-
-local function calculateAnimationWeight(moveAngle: number, referenceAngle: number)
-	local pi2 = math.pi * 2
-	local pi = math.pi
-	local diff = moveAngle - referenceAngle
-	local wrap = (diff % pi2 + pi2) % pi2
-	local short = math.min(wrap, pi2 - wrap)
-	local weight = 1 - (short / (pi / 2))
-	return math.clamp(weight, 0, 1)
-end
 
 local function getInputVector(
 	moveForward: boolean,
@@ -282,173 +271,6 @@ local function checkStepUp(root: Part, velocity: Vector3, character: Model)
 end
 
 -- ===========================
--- STATE MACHINE
--- ===========================
-CharacterController.FSM = StateMachine.new(CharacterController, {
-	Idle = {
-		OnEnter = function(host)
-			host:SetCapability("Movement", true)
-			host:SetCapability("Rotation", false)
-
-			host:PlayAnimation("Idle")
-		end,
-		OnUpdate = function(host)
-			if not host:IsGrounded() then
-				host.FSM:Transition("Fall")
-				return
-			end
-
-			if host:IsMoving() then
-				host.FSM:Transition("Walk")
-				return
-			end
-
-			if host:IsBindingDown("Roll") then
-				host.FSM:Transition("Roll")
-				return
-			end
-		end,
-		OnExit = function(host)
-			host:SetCapability("Rotation", true)
-			host:StopAnimation("Idle")
-		end,
-	},
-	Walk = {
-		OnEnter = function(host)
-			host:SetCapability("Movement", true)
-			host:SetCapability("Rotation", true)
-
-			host:PlayAnimation("WalkForward", nil, 0)
-			host:PlayAnimation("WalkBackward", nil, 0)
-			host:PlayAnimation("WalkLeft", nil, 0)
-			host:PlayAnimation("WalkRight", nil, 0)
-		end,
-		OnUpdate = function(host)
-			if not host:IsGrounded() then
-				host.FSM:Transition("Fall")
-				return
-			end
-
-			if not host:IsMoving() then
-				host.FSM:Transition("Idle")
-				return
-			end
-
-			if host:IsBindingDown("Roll") then
-				host.FSM:Transition("Roll")
-				return
-			end
-
-			local movementDirection = host.Movement.LastMoveDirection
-			local lookVector = host.Root.CFrame.LookVector
-			local dotProduct = movementDirection:Dot(lookVector)
-			local angle = math.atan2(movementDirection:Cross(lookVector).Y, dotProduct)
-
-			local forwardWeight = calculateAnimationWeight(angle, 0)
-			local backwardWeight = calculateAnimationWeight(angle, math.pi)
-			local leftWeight = calculateAnimationWeight(angle, -math.pi / 2)
-			local rightWeight = calculateAnimationWeight(angle, math.pi / 2)
-
-			host:AdjustAnimationWeight("WalkForward", forwardWeight, 0.1)
-			host:AdjustAnimationWeight("WalkBackward", backwardWeight, 0.1)
-			host:AdjustAnimationWeight("WalkLeft", leftWeight, 0.1)
-			host:AdjustAnimationWeight("WalkRight", rightWeight, 0.1)
-		end,
-		OnExit = function(host)
-			host:StopAnimations()
-		end,
-	},
-	Roll = {
-		Context = { Duration = 0.5 },
-		OnEnter = function(host, context)
-			host:SetCapability("Movement", false)
-			host:SetCapability("Rotation", false)
-
-			local moveDirection = host.Movement.MoveDirection
-			local lookDirection = host.Root.CFrame.LookVector
-			local dashDirection = moveDirection.Magnitude > 0 and moveDirection or -lookDirection
-
-			host:SetForcedVelocity(dashDirection * 100)
-
-			context.StartTime = tick()
-
-			local rollTrack = host:GetAnimationTrack("RollForward")
-			if rollTrack then
-				context.Duration = rollTrack.Length
-			end
-
-			local dotProduct = dashDirection:Dot(lookDirection)
-			local angle = math.atan2(dashDirection:Cross(lookDirection).Y, dotProduct)
-
-			local forwardWeight = calculateAnimationWeight(angle, 0)
-			local backwardWeight = calculateAnimationWeight(angle, math.pi)
-			local leftWeight = calculateAnimationWeight(angle, -math.pi / 2)
-			local rightWeight = calculateAnimationWeight(angle, math.pi / 2)
-
-			if backwardWeight > 0.4 then
-				host:PlayAnimation("RollBackward")
-			else
-				host:PlayAnimation("RollForward", nil, forwardWeight)
-				host:PlayAnimation("RollLeft", nil, leftWeight)
-				host:PlayAnimation("RollRight", nil, rightWeight)
-			end
-		end,
-		OnUpdate = function(host, context)
-			if tick() - context.StartTime >= context.Duration then
-				host.FSM:Transition("Idle")
-			end
-		end,
-		OnExit = function(host)
-			host:StopAnimations()
-			host:SetCapability("Movement", true)
-			host:SetCapability("Rotation", true)
-			host:SetForcedVelocity(nil)
-		end,
-	},
-	Fall = {
-		OnEnter = function(host, context)
-			context.StartTime = tick()
-
-			host:PlayAnimation("Fall")
-		end,
-		OnUpdate = function(host, context)
-			if host:IsGrounded() then
-				if tick() - context.StartTime >= 0.5 then
-					host.FSM:Transition("Land")
-					return
-				end
-
-				host.FSM:Transition("Idle")
-			end
-		end,
-		OnExit = function(host)
-			host:StopAnimation("Fall")
-		end,
-	},
-	Land = {
-		Context = { Duration = 1 },
-		OnEnter = function(host, context)
-			host:SetCapability("Movement", false)
-			host:SetCapability("Rotation", false)
-			host:PlayAnimation("Land")
-
-			context.StartTime = tick()
-		end,
-		OnUpdate = function(host, context)
-			if tick() - context.StartTime >= context.Duration then
-				host.FSM:Transition("Idle")
-				return
-			end
-		end,
-		OnExit = function(host)
-			host:SetCapability("Movement", true)
-			host:SetCapability("Rotation", true)
-			host:StopAnimation("Land")
-		end,
-	},
-})
-
--- ===========================
 -- PUBLIC API
 -- ===========================
 
@@ -475,9 +297,6 @@ function CharacterController.Start(self: CharacterController)
 	RunService.RenderStepped:Connect(function(dt)
 		self:Render(dt)
 	end)
-
-	-- Start the state machine
-	self.FSM:Start("Idle")
 end
 
 -- ===========================
