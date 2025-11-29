@@ -1,4 +1,6 @@
-local StraightSword_Standard = {
+local Types = require(script.Parent.Types)
+
+local StraightSword_Standard: Types.CombatData = {
 	Id = "StraightSword_Standard",
 
 	Attacks = {
