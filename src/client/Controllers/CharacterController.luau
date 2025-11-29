@@ -17,7 +17,7 @@ CharacterController.Capabilities = {
 	Rotation = true,
 	Gravity = true,
 	GroundDetection = true,
-	GroundAlignment = true,
+	GroundAlignment = false,
 	Debug = RunService:IsStudio(),
 }
 
@@ -80,7 +80,7 @@ CharacterController.Physics = {
 	GroundNormal = Vector3.yAxis,
 	GroundDistance = 0,
 
-	MaxWalkableAngle = math.rad(50),
+	MaxWalkableAngle = math.rad(45),
 
 	SlopeEdgeThreshold = 0.5,
 
@@ -364,7 +364,6 @@ CharacterController.FSM = StateMachine.new(CharacterController, {
 		OnEnter = function(host, context)
 			host:SetCapability("Movement", false)
 			host:SetCapability("Rotation", false)
-			host:SetCapability("GroundAlignment", false)
 
 			local moveDirection = host.Movement.MoveDirection
 			local lookDirection = host.Root.CFrame.LookVector
@@ -404,7 +403,6 @@ CharacterController.FSM = StateMachine.new(CharacterController, {
 			host:StopAnimations()
 			host:SetCapability("Movement", true)
 			host:SetCapability("Rotation", true)
-			host:SetCapability("GroundAlignment", true)
 			host:SetForcedVelocity(nil)
 		end,
 	},
