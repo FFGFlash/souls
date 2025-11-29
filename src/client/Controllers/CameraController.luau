@@ -1,6 +1,8 @@
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local FindAllHitsOnRay = require(ReplicatedStorage.Shared.FindAllHitsOnRay)
 
 local CameraController = {}
 export type CameraController = typeof(CameraController)
@@ -108,6 +110,7 @@ CameraController.Collision = {
 
 	-- Occluded Parts Tracking
 	OccludedParts = {} :: { [BasePart]: number },
+	OccludedPartsThisFrame = {} :: { BasePart },
 }
 
 -- ===========================
@@ -199,12 +202,13 @@ local function handleOcclusion(parts: { BasePart }, targetTransparency: number, 
 			continue
 		end
 
-		local currentTransparency = CameraController.Collision.OccludedParts[part] or part.Transparency
-		local newTransparency = currentTransparency
-			+ (targetTransparency - currentTransparency) * math.min(fadeSpeed * dt, 1)
+		if CameraController.Collision.OccludedParts[part] == nil then
+			CameraController.Collision.OccludedParts[part] = part.Transparency
+		end
 
-		CameraController.Collision.OccludedParts[part] = newTransparency
-		part.Transparency = newTransparency
+		part.Transparency = math.lerp(part.Transparency, targetTransparency, math.min(fadeSpeed * dt, 1))
+
+		table.insert(CameraController.Collision.OccludedPartsThisFrame, part)
 	end
 end
 
@@ -217,22 +221,31 @@ local function clearOcclusion(dt: number)
 			continue
 		end
 
-		local fadeSpeed = 5
-		local currentTransparency = part.Transparency
-		local newTransparency = currentTransparency
-			+ (originalTransparency - currentTransparency) * math.min(fadeSpeed * dt, 1)
+		local isOccluded = false
+		for _, occludedPart in CameraController.Collision.OccludedPartsThisFrame do
+			if occludedPart == part then
+				isOccluded = true
+				break
+			end
+		end
 
-		part.Transparency = newTransparency
+		if not isOccluded then
+			local fadeSpeed = 5
 
-		if math.abs(newTransparency - originalTransparency) < 0.01 then
-			part.Transparency = originalTransparency
-			table.insert(partsToRemove, part)
+			part.Transparency = math.lerp(part.Transparency, originalTransparency, math.min(fadeSpeed * dt, 1))
+
+			if math.abs(part.Transparency - originalTransparency) < 0.01 then
+				part.Transparency = originalTransparency
+				table.insert(partsToRemove, part)
+			end
 		end
 	end
 
 	for _, part in partsToRemove do
 		CameraController.Collision.OccludedParts[part] = nil
 	end
+
+	CameraController.Collision.OccludedPartsThisFrame = {}
 end
 
 local function updateDirection()
@@ -422,20 +435,25 @@ function CameraController.Update(self: CameraController, dt: number)
 		local rayOrigin = self.Position.TargetPosition
 		local rayDirection = desiredCameraPosition - rayOrigin
 
-		local result = workspace:Raycast(rayOrigin, rayDirection, self.Collision.RaycastParams)
+		local results = FindAllHitsOnRay(rayOrigin, rayDirection, self.Collision.RaycastParams)
 
-		if result then
-			local hitDistance = (result.Position - rayOrigin).Magnitude
+		local lastResult = results[#results]
+
+		if lastResult then
+			local hitDistance = (lastResult.Position - rayOrigin).Magnitude
 			local safeDistance = math.max(hitDistance - self.Collision.CollisionBuffer, self.Collision.MinDistance)
 
 			desiredCameraPosition = rayOrigin + rayDirection.Unit * safeDistance
 
-			if result.Instance and result.Instance:IsA("BasePart") then
-				handleOcclusion({ result.Instance }, self.Collision.OcclusionTransparency, dt)
+			local instances = {}
+			for _, result in results do
+				table.insert(instances, result.Instance)
 			end
-		else
-			clearOcclusion(dt)
+
+			handleOcclusion(instances, self.Collision.OcclusionTransparency, dt)
 		end
+
+		clearOcclusion(dt)
 	end
 
 	local positionAlpha = 1 - math.exp(-dt / positionSmoothing)
