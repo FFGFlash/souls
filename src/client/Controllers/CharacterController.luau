@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterPlayer = game:GetService("StarterPlayer")
 local UserInputService = game:GetService("UserInputService")
+local CameraController = require(script.Parent.CameraController)
 local Gizmo = require(ReplicatedStorage.Packages.Gizmo)
 
 local CharacterController = {}
@@ -112,6 +113,7 @@ CharacterController.Humanoid = nil :: Humanoid?
 CharacterController.Root = nil :: Part?
 CharacterController.Animator = nil :: Animator?
 CharacterController.AntiGravity = nil :: VectorForce?
+CharacterController.CameraController = nil :: CameraController.CameraController?
 
 -- ===========================
 -- PRIVATE FUNCTIONS
@@ -135,10 +137,15 @@ local function worldInputToCamera(input: Vector3): Vector3
 		return Vector3.zero
 	end
 
-	local camera = workspace.CurrentCamera
-	local cameraCF = camera.CFrame
-	local cameraForward = Vector3.new(cameraCF.LookVector.X, 0, cameraCF.LookVector.Z)
-	local cameraRight = cameraCF.RightVector
+	local cameraForward, cameraRight
+	if CharacterController.CameraController and CharacterController.CameraController.GetCharacterFacingDirection then
+		cameraForward = CharacterController.CameraController:GetCharacterFacingDirection() * -1
+		cameraRight = Vector3.new(-cameraForward.Z, 0, cameraForward.X)
+	else
+		local camera = workspace.CurrentCamera
+		cameraForward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
+		cameraRight = camera.CFrame.RightVector
+	end
 
 	local worldDirection = cameraForward * input.Z + cameraRight * input.X
 	return worldDirection.Magnitude > 0 and worldDirection.Unit or Vector3.zero
@@ -274,7 +281,12 @@ end
 -- PUBLIC API
 -- ===========================
 
-function CharacterController.Init(self: CharacterController)
+function CharacterController.Init(
+	self: CharacterController,
+	controllers: { CameraController: CameraController.CameraController }
+)
+	self.CameraController = controllers.CameraController
+
 	StarterPlayer.DevComputerMovementMode = Enum.DevComputerMovementMode.Scriptable
 	StarterPlayer.DevTouchMovementMode = Enum.DevTouchMovementMode.Scriptable
 
@@ -391,8 +403,14 @@ function CharacterController.Update(self: CharacterController, dt: number)
 			targetYaw = self.Rotation.TargetYaw
 		elseif self.Rotation.LockToCamera then
 			-- Rotate toward camera rotation
-			local camera = workspace.CurrentCamera
-			local cameraForward = getForwardVector(camera.CFrame).Unit
+			local cameraForward
+			if self.CameraController and self.CameraController.GetCharacterFacingDirection then
+				cameraForward = self.CameraController:GetCharacterFacingDirection() * -1
+			else
+				local camera = workspace.CurrentCamera
+				cameraForward = getForwardVector(camera.CFrame).Unit
+			end
+
 			targetYaw = math.atan2(-cameraForward.X, -cameraForward.Z)
 		elseif self.Rotation.FaceMovementDirection and self.Movement.CurrentSpeed > 0.5 then
 			-- Rotate toward character movement direction

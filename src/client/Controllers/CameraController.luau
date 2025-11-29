@@ -471,7 +471,14 @@ function CameraController.Update(self: CameraController, dt: number)
 	local positionAlpha = 1 - math.exp(-dt / positionSmoothing)
 	self.Position.CurrentPosition = self.Position.CurrentPosition:Lerp(desiredCameraPosition, positionAlpha)
 
-	local desiredRotation = CFrame.lookAt(self.Position.CurrentPosition, rootPosition)
+	local lookTarget = rootPosition
+	if self.Capabilities.ShoulderSwap and not self.LockOn.Enabled then
+		local characterRight = self.Root.CFrame.RightVector
+		lookTarget = rootPosition
+			- characterRight * (self.Position.RightOffset * 0.3 * self.Position.CurrentShoulderSide)
+	end
+
+	local desiredRotation = CFrame.lookAt(self.Position.CurrentPosition, lookTarget)
 
 	local rotationAlpha = 1 - math.exp(-dt / rotationSmoothing)
 	self.Rotation.CurrentRotation = self.Rotation.CurrentRotation:Lerp(desiredRotation, rotationAlpha)
@@ -698,6 +705,23 @@ end
 
 function CameraController.GetLockOnTarget(self: CameraController): Model?
 	return self.LockOn.Target
+end
+
+function CameraController.GetCharacterFacingDirection(self: CameraController): Vector3
+	if self.LockOn.Enabled and self.LockOn.Target and self.Root then
+		local lockTarget = self.LockOn.Target:FindFirstChild("HumanoidRootPart")
+		if lockTarget and lockTarget:IsA("BasePart") then
+			local targetPos = lockTarget.Position
+			local playerPos = self.Root.Position
+			local dirToTarget = -Vector3.new(targetPos.X - playerPos.X, 0, targetPos.Z - playerPos.Z)
+			if dirToTarget.Magnitude > 0 then
+				return dirToTarget.Unit
+			end
+		end
+	end
+
+	local yaw = self.Rotation.Yaw
+	return Vector3.new(math.sin(yaw), 0, math.cos(yaw)).Unit
 end
 
 return CameraController
