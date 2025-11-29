@@ -1,5 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StateMachine = require(ReplicatedStorage.Shared.StateMachine)
+local StateMachine = require(ReplicatedStorage.Shared.Classes.StateMachine)
 local CameraController = require(script.Parent.CameraController)
 local CharacterController = require(script.Parent.CharacterController)
 

@@ -2,8 +2,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Signal = require(ReplicatedStorage.Packages.Signal)
 local FindAllHitsOnRay = require(ReplicatedStorage.Shared.FindAllHitsOnRay)
+local Signal = require(ReplicatedStorage.Shared.Classes.Signal)
 
 local CameraController = {}
 export type CameraController = typeof(CameraController)

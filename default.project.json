@@ -9,6 +9,12 @@
       },
       "Shared": {
         "$path": "src/shared"
+      },
+      "VFX": {
+        "$className": "Folder"
+      },
+      "SFX": {
+        "$className": "Folder"
       }
     },
     "ServerScriptService": {
