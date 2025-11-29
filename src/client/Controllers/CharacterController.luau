@@ -58,8 +58,8 @@ CharacterController.Movement = {
 -- ===========================
 CharacterController.Rotation = {
 	TurnSpeed = math.rad(360),
-	FaceMovementDirection = false,
-	LockToCamera = true,
+	FaceMovementDirection = true,
+	LockToCamera = false,
 	TargetYaw = nil :: number?,
 
 	GroundAlignmentSpeed = 12,

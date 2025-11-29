@@ -197,6 +197,10 @@ CharacterStateController.FSM = StateMachine.new(CharacterStateController, {
 function CharacterStateController.Init(self: CharacterStateController, controllers)
 	self.Character = controllers.CharacterController
 	self.Camera = controllers.CameraController
+
+	self.Camera.LockOnTargetChanged:Connect(function(lockedOn)
+		self.Character:SetLockToCamera(lockedOn)
+	end)
 end
 
 function CharacterStateController.Start(self: CharacterStateController)

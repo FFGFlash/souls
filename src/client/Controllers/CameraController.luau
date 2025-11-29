@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Signal = require(ReplicatedStorage.Packages.Signal)
 local FindAllHitsOnRay = require(ReplicatedStorage.Shared.FindAllHitsOnRay)
 
 local CameraController = {}
@@ -135,6 +136,11 @@ CameraController.LockOn = {
 CameraController.Target = nil :: Model?
 CameraController.Root = nil :: Part?
 CameraController.Camera = workspace.CurrentCamera
+
+-- ===========================
+-- SIGNALS
+-- ===========================
+CameraController.LockOnTargetChanged = Signal.new()
 
 -- ===========================
 -- PRIVATE FUNCTIONS
@@ -577,8 +583,7 @@ function CameraController.ToggleLockOn(self: CameraController)
 	end
 
 	if self.LockOn.Enabled then
-		self.LockOn.Enabled = false
-		self.LockOn.Target = nil
+		self:SetLockOnTarget(nil)
 	else
 		local playerPosition = self.Root and self.Root.Position or self.Position.CurrentPosition
 		local target = findNearestLockOnTarget(
@@ -592,8 +597,7 @@ function CameraController.ToggleLockOn(self: CameraController)
 		print("Target: ", target)
 
 		if target then
-			self.LockOn.Enabled = true
-			self.LockOn.Target = target
+			self:SetLockOnTarget(target)
 		end
 	end
 end
@@ -605,6 +609,8 @@ function CameraController.SetLockOnTarget(self: CameraController, target: Model?
 
 	self.LockOn.Target = target
 	self.LockOn.Enabled = target ~= nil
+
+	self.LockOnTargetChanged:Fire(self.LockOn.Enabled, self.LockOn.Target)
 end
 
 function CameraController.CycleLockOnTarget(self: CameraController)
@@ -622,7 +628,7 @@ function CameraController.CycleLockOnTarget(self: CameraController)
 	)
 
 	if nextTarget then
-		self.LockOn.Target = nextTarget
+		self:SetLockOnTarget(nextTarget)
 	end
 end
 
