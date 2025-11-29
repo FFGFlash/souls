@@ -33,6 +33,7 @@ CharacterStateController.FSM = StateMachine.new(CharacterStateController, {
 		OnEnter = function(host)
 			host.Character:SetCapability("Movement", true)
 			host.Character:SetCapability("Rotation", false)
+			host.Camera:EnableAutoRotate(true)
 
 			host.Character:PlayAnimation("Idle")
 		end,
@@ -55,6 +56,7 @@ CharacterStateController.FSM = StateMachine.new(CharacterStateController, {
 		OnExit = function(host)
 			host.Character:SetCapability("Rotation", true)
 			host.Character:StopAnimation("Idle")
+			host.Camera:EnableAutoRotate(false)
 		end,
 	},
 	Walk = {
