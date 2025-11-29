@@ -287,7 +287,7 @@ end
 CharacterController.FSM = StateMachine.new(CharacterController, {
 	Idle = {
 		OnEnter = function(host)
-			host:SetCapability("Movement", false)
+			host:SetCapability("Movement", true)
 			host:SetCapability("Rotation", false)
 
 			host:PlayAnimation("Idle")
@@ -298,7 +298,7 @@ CharacterController.FSM = StateMachine.new(CharacterController, {
 				return
 			end
 
-			if host.Movement.InputVector.Magnitude > 0 then
+			if host:IsMoving() then
 				host.FSM:Transition("Walk")
 				return
 			end
@@ -309,7 +309,6 @@ CharacterController.FSM = StateMachine.new(CharacterController, {
 			end
 		end,
 		OnExit = function(host)
-			host:SetCapability("Movement", true)
 			host:SetCapability("Rotation", true)
 			host:StopAnimation("Idle")
 		end,
