@@ -15,6 +15,9 @@
       },
       "SFX": {
         "$className": "Folder"
+      },
+      "Models": {
+        "$className": "Folder"
       }
     },
     "ServerScriptService": {

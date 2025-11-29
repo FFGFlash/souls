@@ -60,6 +60,62 @@ local StraightSword_Standard: Types.CombatData = {
 			CanBeChained = false,
 			MovementMultiplier = 0.4,
 		},
+		TwoHandedLight1 = {
+			AnimationId = "rbxassetid://0",
+			AnimationSpeed = 1.0,
+			WindupTime = 0.2,
+			RecoveryTime = 0.4,
+			DamageMultiplier = 1.0,
+			Hitboxes = {},
+			CanBeChained = true,
+			ChainWindow = 0.3,
+			NextAttacks = { "TwoHandedLight2" },
+			MovementMultiplier = 0.5,
+		},
+		TwoHandedLight2 = {
+			AnimationId = "rbxassetid://0",
+			AnimationSpeed = 1.0,
+			WindupTime = 0.2,
+			RecoveryTime = 0.5,
+			DamageMultiplier = 1.05,
+			Hitboxes = {},
+			CanBeChained = true,
+			ChainWindow = 0.3,
+			NextAttacks = { "TwoHandedLight3" },
+			MovementMultiplier = 0.5,
+		},
+		TwoHandedLight3 = {
+			AnimationId = "rbxassetid://0",
+			AnimationSpeed = 1.0,
+			WindupTime = 0.2,
+			RecoveryTime = 0.7,
+			DamageMultiplier = 1.15,
+			Hitboxes = {},
+			CanBeChained = false,
+			MovementMultiplier = 0.5,
+		},
+		TwoHandedHeavy1 = {
+			AnimationId = "rbxassetid://0",
+			AnimationSpeed = 1.0,
+			WindupTime = 0.3,
+			RecoveryTime = 0.6,
+			DamageMultiplier = 1.07,
+			Hitboxes = {},
+			CanBeChained = true,
+			ChainWindow = 0.3,
+			NextAttacks = { "TwoHandedHeavy2" },
+			MovementMultiplier = 0.4,
+		},
+		TwoHandedHeavy2 = {
+			AnimationId = "rbxassetid://0",
+			AnimationSpeed = 1.0,
+			WindupTime = 0.4,
+			RecoveryTime = 0.8,
+			DamageMultiplier = 1.3,
+			Hitboxes = {},
+			CanBeChained = false,
+			MovementMultiplier = 0.4,
+		},
 	},
 
 	Moveset = {
@@ -69,11 +125,22 @@ local StraightSword_Standard: Types.CombatData = {
 		},
 		HeavyCombo = {
 			Attacks = { "Heavy1", "Heavy2" },
+			LoopsTo = "Heavy1",
 		},
 	},
 
 	TwoHandingChanges = {
 		DamgeBonus = 1.1,
+		AlternativeMoveset = {
+			LightCombo = {
+				Attacks = { "TwoHandedLight1", "TwoHandedLight2", "TwoHandedLight3" },
+				LoopsTo = "TwoHandedLight1",
+			},
+			HeavyCombo = {
+				Attacks = { "TwoHandedHeavy1", "TwoHandedHeavy2" },
+				LoopsTo = "TwoHandedHeavy1",
+			},
+		},
 	},
 }
 
