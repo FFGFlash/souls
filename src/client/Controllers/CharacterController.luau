@@ -78,6 +78,11 @@ CharacterController.Physics = {
 	GroundRayLength = 4,
 	GroundRayOffset = -0.1,
 	GroundNormal = Vector3.yAxis,
+	GroundDistance = 0,
+
+	MaxWalkableAngle = math.rad(50),
+
+	SlopeEdgeThreshold = 0.5,
 
 	SuspensionStiffness = 15,
 }
@@ -150,9 +155,9 @@ local function worldInputToCamera(input: Vector3): Vector3
 	return worldDirection.Magnitude > 0 and worldDirection.Unit or Vector3.zero
 end
 
-local function performGroundCheck(root: Part, character: Model): (boolean, Vector3)
+local function performGroundCheck(root: Part, character: Model): (boolean, Vector3, number)
 	if not CharacterController.Capabilities.GroundDetection then
-		return false, Vector3.yAxis
+		return false, Vector3.yAxis, 0
 	end
 
 	local origin = root.Position + Vector3.new(0, CharacterController.Physics.GroundRayOffset, 0)
@@ -166,10 +171,42 @@ local function performGroundCheck(root: Part, character: Model): (boolean, Vecto
 	local result = workspace:Raycast(origin, direction, params)
 
 	if result then
-		return true, result.Normal
+		local slopeAngle = math.acos(result.Normal:Dot(Vector3.yAxis))
+		local isWalkable = slopeAngle <= CharacterController.Physics.MaxWalkableAngle
+
+		return isWalkable, result.Normal, result.Distance
 	end
 
-	return false, Vector3.yAxis
+	return false, Vector3.yAxis, math.huge
+end
+
+local function isNearSlopeEdge(root: Part, character: Model, moveDirection: Vector3): boolean
+	if moveDirection.Magnitude < 0.1 then
+		return false
+	end
+
+	local lookAheadDistance = 1.0
+	local origin = root.Position + moveDirection.Unit * lookAheadDistance
+	origin = origin + Vector3.new(0, CharacterController.Physics.GroundRayOffset, 0)
+
+	local direction = Vector3.new(0, -CharacterController.Physics.GroundRayLength, 0)
+
+	local params = RaycastParams.new()
+	params.FilterDescendantsInstances = { character }
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.IgnoreWater = true
+
+	local result = workspace:Raycast(origin, direction, params)
+
+	if not result then
+		return true
+	end
+
+	local currentHeight = root.Position.Y
+	local aheadHeight = result.Position.Y
+	local heightDiff = currentHeight - aheadHeight
+
+	return heightDiff > CharacterController.Physics.SlopeEdgeThreshold
 end
 
 local function getAccelerationAndDeceleration(): (number, number)
@@ -468,7 +505,8 @@ function CharacterController.Update(self: CharacterController, dt: number)
 	)
 
 	-- Update grounded state (IsGrounded and GroundNormal)
-	self.Physics.IsGrounded, self.Physics.GroundNormal = performGroundCheck(self.Root, self.Character)
+	self.Physics.IsGrounded, self.Physics.GroundNormal, self.Physics.GroundDistance =
+		performGroundCheck(self.Root, self.Character)
 
 	-- Calculate MoveDirection
 	local rawMoveDirection = worldInputToCamera(self.Movement.InputVector)
@@ -555,7 +593,19 @@ function CharacterController.Update(self: CharacterController, dt: number)
 
 	-- Calculate the player's tilt relative to the ground
 	local targetTilt
-	if self.Capabilities.GroundAlignment and self.Physics.IsGrounded then
+	local shouldAlign = self.Capabilities.GroundAlignment and self.Physics.IsGrounded
+
+	if shouldAlign then
+		local nearEdge = isNearSlopeEdge(self.Root, self.Character, self.Movement.LastMoveDirection)
+		local maxGroundDistance = self.Humanoid.HipHeight + self.Root.Size.Y / 2 + 0.5
+		local tooFarFromGround = self.Physics.GroundDistance > maxGroundDistance
+
+		if nearEdge or tooFarFromGround then
+			shouldAlign = false
+		end
+	end
+
+	if shouldAlign then
 		targetTilt = calculateGroundTilt(self.Rotation.CurrentYaw, self.Physics.GroundNormal)
 	else
 		targetTilt = CFrame.identity
