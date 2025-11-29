@@ -48,7 +48,7 @@ CameraController.Input = {
 -- ===========================
 CameraController.Position = {
 	-- Offset from target
-	RightOffset = 3,
+	RightOffset = 2,
 	UpOffset = 2.5,
 	BackOffset = 15,
 
@@ -126,7 +126,7 @@ CameraController.LockOn = {
 	-- Lock-On Search Settings
 	SearchRadius = 40,
 	MaxSearchAngle = math.rad(60),
-	PreferredHeight = Vector3.new(0, 2, 0),
+	PreferredHeight = Vector3.new(0, 5, 0),
 }
 
 -- ===========================
@@ -438,7 +438,7 @@ function CameraController.Update(self: CameraController, dt: number)
 		self.Position.TargetPosition = rootPosition
 	end
 
-	local right = self.Rotation.Direction:Cross(Vector3.yAxis).Unit
+	local right = -self.Rotation.Direction:Cross(Vector3.yAxis).Unit
 	local desiredCameraPosition = self.Position.TargetPosition
 		+ self.Rotation.Direction * self.Position.CurrentZoom
 		+ right * (self.Position.RightOffset * self.Position.CurrentShoulderSide)
