@@ -145,7 +145,7 @@ local function getTargetPosition(target: Part, upOffset: number): Vector3
 end
 
 local function findNearestLockOnTarget(
-	origin: Vector3,
+	playerPosition: Vector3,
 	cameraDirection: Vector3,
 	maxDistance: number,
 	maxAngle: number,
@@ -172,13 +172,16 @@ local function findNearestLockOnTarget(
 		end
 
 		local targetPos = rootPart.Position + CameraController.LockOn.PreferredHeight
-		local dirToTarget = (targetPos - origin).Unit
-		local distance = (targetPos - origin).Magnitude
+		local dirToTarget = (targetPos - playerPosition).Unit
+		local distance = (targetPos - playerPosition).Magnitude
 		if distance > maxDistance then
 			continue
 		end
 
-		local angle = math.acos(cameraDirection:Dot(dirToTarget))
+		local viewDirection = Vector3.new(-cameraDirection.X, 0, -cameraDirection.Z).Unit
+		local targetDirection = Vector3.new(dirToTarget.X, 0, dirToTarget.Y).Unit
+
+		local angle = math.acos(math.clamp(viewDirection:Dot(targetDirection), -1, 1))
 		if angle > maxAngle then
 			continue
 		end
@@ -394,9 +397,10 @@ function CameraController.Update(self: CameraController, dt: number)
 		local lockTarget = self.LockOn.Target:FindFirstChild("HumanoidRootPart")
 		if lockTarget and lockTarget:IsA("BasePart") then
 			local targetPos = lockTarget.Position + self.LockOn.PreferredHeight
-			local cameraPos = self.Position.CurrentPosition
-			local dirToTarget = (targetPos - cameraPos).Unit
-			local distance = (targetPos - cameraPos).Magnitude
+			local rootPosition = getTargetPosition(self.Root, self.Position.UpOffset)
+
+			local dirToTarget = (targetPos - rootPosition).Unit
+			local distance = (targetPos - rootPosition).Magnitude
 
 			if distance > self.LockOn.BreakDistance then
 				self:ToggleLockOn()
@@ -569,8 +573,9 @@ function CameraController.ToggleLockOn(self: CameraController)
 		self.LockOn.Enabled = false
 		self.LockOn.Target = nil
 	else
+		local playerPosition = self.Root and self.Root.Position or self.Position.CurrentPosition
 		local target = findNearestLockOnTarget(
-			self.Position.CurrentPosition,
+			playerPosition,
 			self.Rotation.Direction,
 			self.LockOn.SearchRadius,
 			self.LockOn.MaxSearchAngle,
@@ -600,8 +605,9 @@ function CameraController.CycleLockOnTarget(self: CameraController)
 		return
 	end
 
+	local playerPosition = self.Root and self.Root.Position or self.Position.CurrentPosition
 	local nextTarget = findNearestLockOnTarget(
-		self.Position.CurrentPosition,
+		playerPosition,
 		self.Rotation.Direction,
 		self.LockOn.SearchRadius,
 		self.LockOn.MaxSearchAngle,
