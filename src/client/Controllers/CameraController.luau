@@ -248,6 +248,16 @@ local function clearOcclusion(dt: number)
 	CameraController.Collision.OccludedPartsThisFrame = {}
 end
 
+local function normalizeAngle(angle: number): number
+	while angle > math.pi do
+		angle -= 2 * math.pi
+	end
+	while angle < -math.pi do
+		angle += 2 * math.pi
+	end
+	return angle
+end
+
 local function updateDirection()
 	local cy = math.cos(CameraController.Rotation.Yaw)
 	local sy = math.sin(CameraController.Rotation.Yaw)
@@ -260,10 +270,8 @@ end
 local function rotateTowards(yaw: number?, pitch: number?, speed: number, dt: number)
 	local alpha = math.min(speed * dt, 1)
 	if yaw ~= nil then
-		local dYaw = yaw - CameraController.Rotation.Yaw
-
-		CameraController.Rotation.Yaw =
-			math.lerp(CameraController.Rotation.Yaw, math.atan2(math.sin(dYaw), math.cos(dYaw)), alpha)
+		local deltaYaw = normalizeAngle(yaw - CameraController.Rotation.Yaw)
+		CameraController.Rotation.Yaw += deltaYaw * alpha
 	end
 	if pitch ~= nil then
 		CameraController.Rotation.Pitch = math.lerp(CameraController.Rotation.Pitch, pitch, alpha)
@@ -378,7 +386,7 @@ function CameraController.Update(self: CameraController, dt: number)
 		if timeSinceInput > self.Rotation.AutoRotateDelay then
 			local characterForward = self.Root.CFrame.LookVector
 
-			rotateTowards(math.atan2(characterForward.X, characterForward.Z), nil, self.Rotation.AutoRotateSpeed, dt)
+			rotateTowards(math.atan2(-characterForward.X, -characterForward.Z), nil, self.Rotation.AutoRotateSpeed, dt)
 		end
 	end
 
@@ -388,12 +396,12 @@ function CameraController.Update(self: CameraController, dt: number)
 			local targetPos = lockTarget.Position + self.LockOn.PreferredHeight
 			local cameraPos = self.Position.CurrentPosition
 			local dirToTarget = (targetPos - cameraPos).Unit
-
 			local distance = (targetPos - cameraPos).Magnitude
+
 			if distance > self.LockOn.BreakDistance then
 				self:ToggleLockOn()
 			else
-				local targetYaw = math.atan2(dirToTarget.X, dirToTarget.Z)
+				local targetYaw = math.atan2(-dirToTarget.X, -dirToTarget.Z)
 				local targetPitch = math.asin(-dirToTarget.Y)
 
 				rotateTowards(targetYaw, targetPitch, self.LockOn.TransitionSpeed, dt)
