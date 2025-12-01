@@ -4,7 +4,7 @@ local Models = ReplicatedStorage.Models
 
 local Shortsword: Types.ModelAssetData = {
 	Id = "Shortsword",
-	Type = "Model",
+	Type = "model",
 	Models = {
 		{
 			Level = 0,

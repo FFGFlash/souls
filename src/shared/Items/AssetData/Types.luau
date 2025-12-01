@@ -11,7 +11,7 @@ export type BaseAssetData = {
 -- ===========================
 
 export type ModelAssetData = {
-	Type: "Model",
+	Type: "model",
 	Models: { { Level: number, Equipped: { Accessory }, Sheated: { Accessory }? } },
 	Attributes: {
 		[string]: Color3 | Vector3 | BrickColor | string | boolean | number | UDim | UDim2 | Vector2 | CFrame,
