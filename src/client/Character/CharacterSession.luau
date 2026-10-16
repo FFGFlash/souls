@@ -100,6 +100,8 @@ function CharacterSession.new(
 		},
 		AirSpeed = MovementConfig.WalkSpeed,
 		Roll = nil,
+		StrafeRadius = nil,
+		StrafeTarget = nil,
 	}
 
 	local stateMachine = StateMachine.new(States, context)
@@ -199,14 +201,17 @@ local function drawDebug(self: Impl)
 	)
 
 	local pitch, roll = self.Tilt:GetTilt()
+	local clearance, groundOffset = motor:GetGroundClearance()
 	DebugDraw.Text(
 		position + Vector3.new(0, 4, 0),
 		string.format(
-			"%s | %.1f studs/s | tilt %.1f, %.1f",
+			"%s | %.1f studs/s | tilt %.1f, %.1f | clearance %.2f / %.2f",
 			self.StateMachine:GetState() or "?",
 			MathUtil.Flatten(motor:GetVelocity()).Magnitude,
 			math.deg(pitch),
-			math.deg(roll)
+			math.deg(roll),
+			clearance,
+			groundOffset
 		)
 	)
 

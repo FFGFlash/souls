@@ -156,8 +156,19 @@ local function castDistance(self: Impl, origin: Vector3, offset: Vector3): numbe
 	end
 
 	local collision = self.Config.Collision
-	local result = workspace:Spherecast(origin, collision.Radius, offset, self.CollisionParams)
-	if result then
+	for _ = 1, 4 do
+		local result = workspace:Spherecast(origin, collision.Radius, offset, self.CollisionParams)
+		if not result then
+			break
+		end
+
+		-- Characters (NPCs, other players) shouldn't shove the camera around; ignore them from now on.
+		local model = result.Instance:FindFirstAncestorOfClass("Model")
+		if model and model:FindFirstChildOfClass("Humanoid") then
+			self.CollisionParams:AddToFilter(model)
+			continue
+		end
+
 		return math.max(result.Distance - collision.Buffer, 0)
 	end
 	return length
@@ -220,12 +231,13 @@ function CameraRig.UpdateTransform(self: Impl, frame: InputFrame, dt: number)
 	camera.CFrame = cameraCFrame
 	camera.Focus = CFrame.new(focus)
 
-	if frame.FreeCursor then
-		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-		UserInputService.MouseIconEnabled = true
-	else
-		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-		UserInputService.MouseIconEnabled = false
+	-- Only write these when they change: re-assigning the mouse lock every frame can cause mouse delta spikes.
+	local mouseBehavior = if frame.FreeCursor then Enum.MouseBehavior.Default else Enum.MouseBehavior.LockCenter
+	if UserInputService.MouseBehavior ~= mouseBehavior then
+		UserInputService.MouseBehavior = mouseBehavior
+	end
+	if UserInputService.MouseIconEnabled ~= frame.FreeCursor then
+		UserInputService.MouseIconEnabled = frame.FreeCursor
 	end
 
 	self.Occlusion:Update(dt, position, focus)

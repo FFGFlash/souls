@@ -45,18 +45,42 @@ export type Context = {
 	AirSpeed: number,
 	-- The roll in progress (Roll state only).
 	Roll: RollData?,
+	-- Distance to the lock-on target being held while strafing around it, and which target it belongs to.
+	StrafeRadius: number?,
+	StrafeTarget: Model?,
 }
 
 local Context = {}
 
--- Camera-relative movement direction (flat, magnitude 0..1), or zero inside the deadzone.
+-- Flat direction from the character to its lock-on target, if locked on.
+function Context.GetTargetDirection(context: Context): Vector3?
+	local point = context.LockOn:GetTargetPoint()
+	if not point then
+		return nil
+	end
+	local direction = MathUtil.FlatUnit(point - context.Rig.Root.Position)
+	return if direction.Magnitude > 0 then direction else nil
+end
+
+-- Flat (forward, right) basis that move input is relative to. While locked on this is the direction to the
+-- target rather than the camera, so "right" is always the tangent of a circle around the target (the camera's
+-- yaw lags behind the target, which made strafing drift).
+function Context.GetMoveBasis(context: Context): (Vector3, Vector3)
+	local targetDirection = Context.GetTargetDirection(context)
+	if targetDirection then
+		return targetDirection, Vector3.new(-targetDirection.Z, 0, targetDirection.X)
+	end
+	return context.Camera:GetFlatBasis()
+end
+
+-- Movement direction relative to the move basis (flat, magnitude 0..1), or zero inside the deadzone.
 function Context.GetMoveIntent(context: Context): Vector3
 	local move = context.Frame.Move
 	if move.Magnitude < context.Config.MoveInputDeadzone then
 		return Vector3.zero
 	end
 
-	local forward, right = context.Camera:GetFlatBasis()
+	local forward, right = Context.GetMoveBasis(context)
 	local direction = forward * move.Y + right * move.X
 	local magnitude = math.min(direction.Magnitude, 1)
 	if magnitude < 1e-4 then
@@ -67,16 +91,6 @@ end
 
 function Context.HasMoveInput(context: Context): boolean
 	return context.Frame.Move.Magnitude >= context.Config.MoveInputDeadzone
-end
-
--- Flat direction from the character to its lock-on target, if locked on.
-function Context.GetTargetDirection(context: Context): Vector3?
-	local point = context.LockOn:GetTargetPoint()
-	if not point then
-		return nil
-	end
-	local direction = MathUtil.FlatUnit(point - context.Rig.Root.Position)
-	return if direction.Magnitude > 0 then direction else nil
 end
 
 -- Slows movement that goes against the facing direction (walking backwards while locked on).
@@ -96,14 +110,63 @@ function Context.ApplyGroundMovement(context: Context, speed: number, faceTarget
 
 	if targetDirection then
 		context.Motor:SetFacing(targetDirection)
-		local scale = Context.GetBackwardScale(context, intent, targetDirection)
-		context.Motor:SetMove(intent, speed * scale)
+		local velocity = intent * speed * Context.GetBackwardScale(context, intent, targetDirection)
+		velocity += Context.GetStrafeCorrection(context, speed)
+
+		local magnitude = velocity.Magnitude
+		if magnitude > 1e-3 then
+			context.Motor:SetMove(velocity / magnitude, magnitude)
+		else
+			context.Motor:SetMove(Vector3.zero, speed)
+		end
 	else
+		context.StrafeRadius = nil
 		if intent.Magnitude > 0 then
 			context.Motor:SetFacing(intent)
 		end
 		context.Motor:SetMove(intent, speed)
 	end
+end
+
+-- Velocity toward the lock-on target that keeps a pure strafe on a circle around it.
+--
+-- Moving along the tangent always carries the character slightly outwards, and the GroundController's
+-- acceleration makes its velocity lag behind the turning tangent, which pushes it out further. This adds the
+-- inward velocity that lag needs (feed-forward) plus a correction toward the distance held when strafing began.
+-- Any forward/backward input re-captures the distance, so approaching and backing off work normally.
+function Context.GetStrafeCorrection(context: Context, speed: number): Vector3
+	local config = context.Config
+	local point = context.LockOn:GetTargetPoint()
+	local target = context.LockOn:GetTarget()
+	local move = context.Frame.Move
+	if not point or not target then
+		context.StrafeRadius = nil
+		return Vector3.zero
+	end
+
+	local toTarget = MathUtil.Flatten(point - context.Rig.Root.Position)
+	local radius = toTarget.Magnitude
+	local strafing = math.abs(move.X) >= config.MoveInputDeadzone and math.abs(move.Y) < config.StrafeRadialDeadzone
+	if
+		not strafing
+		or radius < config.StrafeMinRadius
+		or context.StrafeTarget ~= target
+		or not context.StrafeRadius
+	then
+		context.StrafeRadius = radius
+		context.StrafeTarget = target
+		if not strafing or radius < config.StrafeMinRadius then
+			return Vector3.zero
+		end
+	end
+
+	local heldRadius = context.StrafeRadius :: number
+	local lateralSpeed = math.abs(move.X) * speed
+	local feedForward = lateralSpeed * lateralSpeed / radius * config.AccelerationTime
+	local correction = (radius - heldRadius) * config.StrafeRadiusGain + feedForward
+	correction = math.clamp(correction, -speed * 0.5, speed * 0.5)
+
+	return toTarget / radius * correction
 end
 
 -- Air control shared by Jump/Fall.

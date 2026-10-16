@@ -7,6 +7,9 @@
 --    ControllerManager doesn't switch on its own.
 --  * "Override" mode drives horizontal velocity directly with a LinearVelocity, for rolls, root motion and
 --    knockback. The active controller keeps handling hover height and gravity.
+--  * Only the root part collides (see Rig), so while airborne a frictionless foot collider is enabled under the
+--    legs. Without it nothing would hold the character at hip height when sliding down steep slopes, and the
+--    legs would sink into the ground.
 --
 -- Nothing here writes Root.CFrame. States set intents during the render step and physics applies them.
 
@@ -35,6 +38,8 @@ export type Motor = {
 	IsGrounded: (self: Motor) -> boolean,
 	-- 0 while grounded, otherwise seconds since the character left the ground.
 	GetTimeAirborne: (self: Motor) -> number,
+	-- Height of the root part's bottom above the sensed floor (math.huge if none), and the target height.
+	GetGroundClearance: (self: Motor) -> (number, number),
 	-- While airborne: distance fallen from the highest point. After landing: total height of the last fall.
 	GetFallHeight: (self: Motor) -> number,
 	GetGroundNormal: (self: Motor) -> Vector3,
@@ -57,8 +62,11 @@ type Impl = {
 	Air: AirController,
 	Sensor: ControllerPartSensor,
 	Override: LinearVelocity,
+	FootCollider: Part,
+	FootWeld: Weld,
 
 	Grounded: boolean,
+	HeightAboveGround: number,
 	AirborneAt: number,
 	GroundLockoutUntil: number,
 	PeakHeight: number,
@@ -73,15 +81,51 @@ type Impl = {
 local Motor = {}
 Motor.__index = Motor
 
+local function getHoverHeight(self: Impl): number
+	return self.Rig:GetHipHeight() + self.Config.GroundOffsetAdjust
+end
+
 local function applySizing(self: Impl)
 	local rig = self.Rig
-	-- GroundOffset is the height of the root part's center above the sensed floor (the sensor also searches
-	-- from the root's center, and must reach further than GroundOffset).
-	local standingHeight = rig:GetStandingHeight() + self.Config.GroundOffsetAdjust
+	local config = self.Config
+	local rootHalfHeight = rig.Root.Size.Y / 2
+	local hoverHeight = getHoverHeight(self)
 
-	self.Ground.GroundOffset = standingHeight
-	self.Sensor.SearchDistance = standingHeight + self.Config.GroundSearchMargin
-	self.Air.MoveMaxForce = rig.Root.AssemblyMass * self.Config.AirAcceleration
+	-- GroundOffset works like Humanoid.HipHeight: the gap between the root part's bottom and the floor.
+	self.Ground.GroundOffset = hoverHeight
+	-- Generous search range (measured from the root's center); our own grounded check enforces the real limit.
+	self.Sensor.SearchDistance = rootHalfHeight + hoverHeight + config.GroundSearchMargin
+	self.Air.MoveMaxForce = rig.Root.AssemblyMass * config.AirAcceleration
+
+	-- The foot collider's bottom sits exactly where the feet should be.
+	local radius = config.FootColliderDiameter / 2
+	self.FootCollider.Size = Vector3.one * config.FootColliderDiameter
+	self.FootWeld.C0 = CFrame.new(0, -(rootHalfHeight + hoverHeight) + radius, 0)
+end
+
+local function createFootCollider(trove: Trove.Trove, root: BasePart): (Part, Weld)
+	local collider = trove:Add(Instance.new("Part"))
+	collider.Name = "FootCollider"
+	collider.Shape = Enum.PartType.Ball
+	collider.Transparency = 1
+	collider.Massless = true
+	collider.CanCollide = false
+	collider.CanQuery = false
+	collider.CanTouch = false
+	collider.CastShadow = false
+	-- Frictionless and non-bouncy so the character slides down steep slopes instead of sticking to them.
+	collider.CustomPhysicalProperties = PhysicalProperties.new(0.01, 0, 0, 100, 100)
+	-- Tells Rig not to manage this part's collision.
+	collider:SetAttribute("ControllerCollider", true)
+	collider.CFrame = root.CFrame
+
+	local weld = Instance.new("Weld")
+	weld.Part0 = root
+	weld.Part1 = collider
+	weld.Parent = collider
+
+	collider.Parent = root
+	return collider, weld
 end
 
 local function applyMoveIntent(self: Impl)
@@ -152,6 +196,8 @@ function Motor.new(rig: Rig.Rig): Motor
 	override.Enabled = false
 	override.Parent = root
 
+	local footCollider, footWeld = createFootCollider(trove, root)
+
 	local self: Impl = {
 		Rig = rig,
 		Config = config,
@@ -162,8 +208,11 @@ function Motor.new(rig: Rig.Rig): Motor
 		Air = air,
 		Sensor = sensor,
 		Override = override,
+		FootCollider = footCollider,
+		FootWeld = footWeld,
 
 		Grounded = true,
+		HeightAboveGround = 0,
 		AirborneAt = 0,
 		GroundLockoutUntil = 0,
 		PeakHeight = root.Position.Y,
@@ -262,6 +311,10 @@ function Motor.GetTimeAirborne(self: Impl): number
 	return os.clock() - self.AirborneAt
 end
 
+function Motor.GetGroundClearance(self: Impl): (number, number)
+	return self.HeightAboveGround, self.Ground.GroundOffset
+end
+
 function Motor.GetFallHeight(self: Impl): number
 	if self.Grounded then
 		return self.FallHeight
@@ -302,20 +355,21 @@ function Motor.PreSimulation(self: Impl, _dt: number)
 	local velocity = root.AssemblyLinearVelocity
 	local sensedPart = sensor.SensedPart
 
-	-- Height of the root's center above the sensed floor (same reference as GroundOffset).
+	-- Height of the root's bottom above the sensed floor (same reference as GroundOffset).
 	local heightAboveGround = math.huge
 	local walkable = false
 	if sensedPart then
-		heightAboveGround = root.Position.Y - sensor.HitFrame.Position.Y
+		heightAboveGround = (root.Position.Y - root.Size.Y / 2) - sensor.HitFrame.Position.Y
 		walkable = sensor.HitNormal.Y >= math.cos(config.MaxSlopeAngle)
 	end
+	self.HeightAboveGround = heightAboveGround
 
 	local grounded
 	if now < self.GroundLockoutUntil or not walkable then
 		grounded = false
 	elseif self.Grounded then
-		-- Stay grounded anywhere within the sensor's range (stepping down stairs, small drops).
-		grounded = true
+		-- Stay grounded over small drops (stepping down stairs); the ground snap pulls us down onto them.
+		grounded = heightAboveGround <= groundOffset + config.GroundSearchMargin
 	else
 		-- Only land once we're close to standing height and not still moving upwards.
 		grounded = heightAboveGround <= groundOffset + config.LandTolerance and velocity.Y <= 1
@@ -337,6 +391,13 @@ function Motor.PreSimulation(self: Impl, _dt: number)
 	else
 		becomeAirborne(self)
 		self.PeakHeight = math.max(self.PeakHeight, root.Position.Y)
+	end
+
+	-- While grounded the GroundController holds the legs above the floor, and a collider there would snag on
+	-- steps. While airborne the collider keeps the legs out of slopes and floors.
+	local footCollides = not grounded
+	if self.FootCollider.CanCollide ~= footCollides then
+		self.FootCollider.CanCollide = footCollides
 	end
 end
 

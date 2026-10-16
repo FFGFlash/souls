@@ -81,25 +81,36 @@ local function computeTarget(self: Impl): (number, number)
 	local offset = config.ProbeOffset
 	local depth = self.Rig:GetStandingHeight() + config.ProbeDepth
 
+	local center = probe(self, origin, depth)
 	local front = probe(self, origin + forward * offset, depth)
 	local back = probe(self, origin - forward * offset, depth)
 	local rightHeight = probe(self, origin + right * offset, depth)
 	local leftHeight = probe(self, origin - right * offset, depth)
-	if not (front and back and rightHeight and leftHeight) then
+	if not (center and front and back and rightHeight and leftHeight) then
 		-- At least one probe is over a drop: we're at an edge.
 		return 0, 0
 	end
 
+	-- On a flat plane (any slope) the center sits halfway between opposite probes. If it doesn't, we're on
+	-- stairs, a step, or the crest/foot of a slope, where tilting looks wrong.
+	local tolerance = config.PlanarTolerance
+	if
+		math.abs(center - (front + back) / 2) > tolerance
+		or math.abs(center - (rightHeight + leftHeight) / 2) > tolerance
+	then
+		return 0, 0
+	end
+
+	local span = offset * 2
 	local frontToBack = front - back
 	local rightToLeft = rightHeight - leftHeight
-	if math.abs(frontToBack) > config.MaxStepDelta or math.abs(rightToLeft) > config.MaxStepDelta then
-		-- Stairs, ledges and steps: tilting here looks wrong.
+	local slope = math.atan2(math.sqrt(frontToBack * frontToBack + rightToLeft * rightToLeft), span)
+	if slope > MovementConfig.MaxSlopeAngle then
 		return 0, 0
 	end
 
 	-- Rotating +X tips the head backwards and +Z tips it to the left, which is what aligns "up" with the
 	-- ground normal when the ground ahead / to the right is higher.
-	local span = offset * 2
 	local pitch = math.atan2(frontToBack, span) * config.LeanFactor
 	local roll = math.atan2(rightToLeft, span) * config.LeanFactor
 

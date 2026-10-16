@@ -9,6 +9,12 @@ local Movement = {
 	-- Move input below this magnitude counts as no input.
 	MoveInputDeadzone = 0.1,
 
+	-- Locked-on strafing holds the distance to the target while only moving sideways. Forward/back input
+	-- above StrafeRadialDeadzone changes the distance as normal.
+	StrafeRadiusGain = 4,
+	StrafeRadialDeadzone = 0.3,
+	StrafeMinRadius = 2,
+
 	-- GroundController: time to reach full speed / to stop.
 	AccelerationTime = 0.15,
 	DecelerationTime = 0.1,
@@ -22,11 +28,13 @@ local Movement = {
 
 	-- Ground detection.
 	MaxSlopeAngle = math.rad(50),
-	-- Added to the standing height (HipHeight + half the root part's height) for GroundController.GroundOffset.
-	-- Raise it if the character's feet sink into the floor, lower it if the character floats.
+	-- Added to Humanoid.HipHeight for GroundController.GroundOffset (the gap between the root part's bottom and
+	-- the floor). Raise it if the character's feet sink into the floor, lower it if the character floats.
 	GroundOffsetAdjust = 0,
-	-- Extra distance below the feet that the ground sensor searches (used for stepping down / snapping).
+	-- How far below standing height the ground can drop while staying grounded (stepping down / snapping).
 	GroundSearchMargin = 1.5,
+	-- Ball collider under the legs, only active while airborne (keeps the legs out of slopes when sliding).
+	FootColliderDiameter = 1.4,
 	-- When airborne, how close to standing height the character must be before it counts as landed.
 	LandTolerance = 0.5,
 	GroundSnap = {
@@ -92,11 +100,12 @@ local Movement = {
 		-- Distance of the four ground probes from the root, and how far below the feet they search.
 		ProbeOffset = 0.9,
 		ProbeDepth = 2,
-		-- Height difference between opposite probes above which we assume an edge/stairs and stop tilting.
-		MaxStepDelta = 1.2,
-		-- Fraction of the slope angle to tilt by, and the maximum tilt.
-		LeanFactor = 0.6,
-		MaxAngle = math.rad(12),
+		-- How far the ground under the root may deviate from the plane through the outer probes before we assume
+		-- stairs/an edge/a slope crest and stop tilting.
+		PlanarTolerance = 0.2,
+		-- Fraction of the slope angle to tilt by (1 = fully match the ground), and the maximum tilt.
+		LeanFactor = 1,
+		MaxAngle = math.rad(35),
 		Rate = 8,
 	},
 }

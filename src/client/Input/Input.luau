@@ -34,6 +34,9 @@ type Impl = {
 	HeldCount: { [string]: number },
 	Pressed: Presses,
 	Wheel: number,
+	-- Mouse movement accumulated from InputChanged since the last Sample, and whether the mouse was locked then.
+	MouseDelta: Vector2,
+	MouseWasLocked: boolean,
 	DodgeDownAt: number?,
 	FlickArmed: boolean,
 }
@@ -146,6 +149,8 @@ function Input.new(): Input
 		HeldCount = {},
 		Pressed = newPresses(),
 		Wheel = 0,
+		MouseDelta = Vector2.zero,
+		MouseWasLocked = false,
 		DodgeDownAt = nil,
 		FlickArmed = true,
 	}
@@ -168,7 +173,10 @@ function Input.new(): Input
 		onInputEnded(self, input)
 	end)
 	self.Trove:Connect(UserInputService.InputChanged, function(input: InputObject, gameProcessed: boolean)
-		if input.UserInputType == Enum.UserInputType.MouseWheel and not gameProcessed then
+		if input.UserInputType == Enum.UserInputType.MouseMovement then
+			-- Accumulating per-event deltas is reliable at any frame rate, unlike polling GetMouseDelta.
+			self.MouseDelta += Vector2.new(input.Delta.X, input.Delta.Y)
+		elseif input.UserInputType == Enum.UserInputType.MouseWheel and not gameProcessed then
 			self.Wheel += input.Position.Z
 		end
 	end)
@@ -211,7 +219,17 @@ end
 
 local function sampleLook(self: Impl, rightStick: Vector2, dt: number): Vector2
 	local mouse = self.Bindings.Mouse
-	local mouseDelta = UserInputService:GetMouseDelta()
+	local mouseDelta = self.MouseDelta
+	self.MouseDelta = Vector2.zero
+
+	-- Ignore mouse movement while the cursor is free, and on the frame it gets locked again (that delta is the
+	-- cursor snapping back to the center, not the player looking around).
+	local locked = UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter
+	if not (locked and self.MouseWasLocked) then
+		mouseDelta = Vector2.zero
+	end
+	self.MouseWasLocked = locked
+
 	local look = Vector2.new(
 		mouseDelta.X * mouse.Sensitivity * (if mouse.InvertX then -1 else 1),
 		-mouseDelta.Y * mouse.Sensitivity * (if mouse.InvertY then -1 else 1)

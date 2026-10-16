@@ -34,7 +34,8 @@ local Rig = {}
 Rig.__index = Rig
 
 local function setupCollision(self: Impl, part: Instance)
-	if part:IsA("BasePart") then
+	-- Colliders added by the controller itself (e.g. the Motor's foot collider) manage their own collision.
+	if part:IsA("BasePart") and not part:GetAttribute("ControllerCollider") then
 		part.CanCollide = part == self.Root
 	end
 end
