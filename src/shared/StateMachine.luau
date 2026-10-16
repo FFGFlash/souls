@@ -1,12 +1,13 @@
 --!strict
--- Small finite state machine. A state's Update returns the name of the next state (or nil to stay).
+-- Small finite state machine. A state's Update receives the frame's dt and the seconds spent in the state, and
+-- returns the name of the next state (or nil to stay).
 -- The machine is driven explicitly by its owner; it never connects to RunService itself.
 
 local Signal = require(script.Parent.Signal)
 
 export type State<C> = {
 	Enter: ((context: C, previous: string?) -> ())?,
-	Update: (context: C, dt: number) -> string?,
+	Update: (context: C, dt: number, elapsed: number) -> string?,
 	Exit: ((context: C, nextState: string) -> ())?,
 }
 
@@ -84,7 +85,7 @@ function StateMachine.Update(self: Impl, dt: number)
 			return
 		end
 
-		local nextState = self.States[current].Update(self.Context, dt)
+		local nextState = self.States[current].Update(self.Context, dt, os.clock() - self.EnteredAt)
 		if not nextState or nextState == current then
 			return
 		end

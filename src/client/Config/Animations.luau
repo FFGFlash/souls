@@ -14,7 +14,7 @@ local Animations = {
 		RollRight = "rbxassetid://79227688280429",
 		Land = "rbxassetid://80044599499576",
 		Fall = "rbxassetid://127538891225329",
-	},
+	} :: { [string]: string },
 
 	-- Movement speed the walk cycle was authored for; playback speed scales with actual speed.
 	WalkReferenceSpeed = 16,
@@ -24,10 +24,9 @@ local Animations = {
 	IdleBlendSpeed = 6,
 	-- How quickly locomotion weights follow their targets.
 	BlendRate = 12,
-	-- Placeholder: sprint plays WalkForward faster until a sprint animation exists.
+	-- Placeholder: sprint plays WalkForward faster until a sprint animation exists. Jumping likewise uses the
+	-- Fall animation (the "Air" locomotion mode) until a jump animation exists.
 	SprintTrack = "WalkForward",
-	-- Placeholder: jumping uses the fall animation until a jump animation exists.
-	JumpTrack = "Fall",
 	ActionFadeTime = 0.1,
 }
 
