@@ -75,11 +75,12 @@ Motor.__index = Motor
 
 local function applySizing(self: Impl)
 	local rig = self.Rig
-	local hipHeight = rig:GetHipHeight() + self.Config.GroundOffsetAdjust
+	-- GroundOffset is the height of the root part's center above the sensed floor (the sensor also searches
+	-- from the root's center, and must reach further than GroundOffset).
+	local standingHeight = rig:GetStandingHeight() + self.Config.GroundOffsetAdjust
 
-	self.Ground.GroundOffset = hipHeight
-	-- The sensor searches from the root's center; GroundOffset is measured from the root's bottom.
-	self.Sensor.SearchDistance = rig.Root.Size.Y / 2 + hipHeight + self.Config.GroundSearchMargin
+	self.Ground.GroundOffset = standingHeight
+	self.Sensor.SearchDistance = standingHeight + self.Config.GroundSearchMargin
 	self.Air.MoveMaxForce = rig.Root.AssemblyMass * self.Config.AirAcceleration
 end
 
@@ -301,11 +302,11 @@ function Motor.PreSimulation(self: Impl, _dt: number)
 	local velocity = root.AssemblyLinearVelocity
 	local sensedPart = sensor.SensedPart
 
-	-- Height of the root's bottom above the sensed floor.
+	-- Height of the root's center above the sensed floor (same reference as GroundOffset).
 	local heightAboveGround = math.huge
 	local walkable = false
 	if sensedPart then
-		heightAboveGround = (root.Position.Y - root.Size.Y / 2) - sensor.HitFrame.Position.Y
+		heightAboveGround = root.Position.Y - sensor.HitFrame.Position.Y
 		walkable = sensor.HitNormal.Y >= math.cos(config.MaxSlopeAngle)
 	end
 

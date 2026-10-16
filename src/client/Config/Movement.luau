@@ -22,8 +22,8 @@ local Movement = {
 
 	-- Ground detection.
 	MaxSlopeAngle = math.rad(50),
-	-- Added to Humanoid.HipHeight for GroundController.GroundOffset. Raise it if the character sinks into
-	-- the floor, lower it if the character floats.
+	-- Added to the standing height (HipHeight + half the root part's height) for GroundController.GroundOffset.
+	-- Raise it if the character's feet sink into the floor, lower it if the character floats.
 	GroundOffsetAdjust = 0,
 	-- Extra distance below the feet that the ground sensor searches (used for stepping down / snapping).
 	GroundSearchMargin = 1.5,
