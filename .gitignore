@@ -9,3 +9,5 @@
 Packages
 ServerPackages
 sourcemap.json
+# Luau type definitions (downloaded for luau-lsp analyze)
+globalTypes.d.luau
