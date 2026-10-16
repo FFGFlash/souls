@@ -28,11 +28,20 @@
     },
     "StarterPlayer": {
       "$className": "StarterPlayer",
+      "$properties": {
+        "EnableMouseLockOption": false
+      },
       "StarterCharacterScripts": {
-        "$className": "StarterCharacterScripts"
+        "$className": "StarterCharacterScripts",
+        "Animate": {
+          "$path": "src/stubs/Animate.client.luau"
+        }
       },
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
+        "PlayerModule": {
+          "$path": "src/stubs/PlayerModule.luau"
+        },
         "Client": {
           "$path": "src/client"
         }

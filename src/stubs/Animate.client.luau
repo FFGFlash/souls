@@ -1,0 +1,3 @@
+--!strict
+-- Replaces Roblox's default Animate script so its idle/walk animations don't fight ours.
+-- Character animations are driven by StarterPlayerScripts.Client (Character/Animation.luau).
