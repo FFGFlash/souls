@@ -22,12 +22,17 @@ export type Rig = {
 	GetHipHeight: (self: Rig) -> number,
 	-- Distance from the root part's center to the bottom of the feet when standing.
 	GetStandingHeight: (self: Rig) -> number,
+	-- Stops managing collision and restores the limbs' original CanCollide (e.g. so a corpse rests on the floor).
+	ReleaseCollision: (self: Rig) -> (),
 	Destroy: (self: Rig) -> (),
 }
 
 type Impl = Rig & {
 	Trove: Trove.Trove,
 	RootJoint: Motor6D?,
+	CollisionConnection: RBXScriptConnection?,
+	-- CanCollide of each part before the rig overrode it.
+	OriginalCollision: { [BasePart]: boolean },
 }
 
 local Rig = {}
@@ -36,6 +41,9 @@ Rig.__index = Rig
 local function setupCollision(self: Impl, part: Instance)
 	-- Colliders added by the controller itself (e.g. the Motor's foot collider) manage their own collision.
 	if part:IsA("BasePart") and not part:GetAttribute("ControllerCollider") then
+		if self.OriginalCollision[part] == nil then
+			self.OriginalCollision[part] = part.CanCollide
+		end
 		part.CanCollide = part == self.Root
 	end
 end
@@ -73,13 +81,15 @@ function Rig.new(character: Model): Rig?
 		RaycastParams = params,
 		Trove = Trove.new(),
 		RootJoint = nil,
+		CollisionConnection = nil,
+		OriginalCollision = setmetatable({}, { __mode = "k" }) :: any,
 	} :: any
 	setmetatable(self :: any, Rig)
 
 	for _, descendant in character:GetDescendants() do
 		setupCollision(self, descendant)
 	end
-	self.Trove:Connect(character.DescendantAdded, function(descendant: Instance)
+	self.CollisionConnection = self.Trove:Connect(character.DescendantAdded, function(descendant: Instance)
 		setupCollision(self, descendant)
 	end)
 
@@ -109,6 +119,20 @@ end
 
 function Rig.GetStandingHeight(self: Impl): number
 	return self.Root.Size.Y / 2 + self.Humanoid.HipHeight
+end
+
+function Rig.ReleaseCollision(self: Impl)
+	local connection = self.CollisionConnection
+	if connection then
+		self.CollisionConnection = nil
+		connection:Disconnect()
+	end
+	for part, canCollide in self.OriginalCollision do
+		if part.Parent then
+			part.CanCollide = canCollide
+		end
+	end
+	table.clear(self.OriginalCollision)
 end
 
 function Rig.Destroy(self: Impl)
