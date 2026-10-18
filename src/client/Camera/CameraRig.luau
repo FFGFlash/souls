@@ -48,7 +48,8 @@ type Impl = {
 	Shoulder: number,
 	ShoulderTarget: number,
 	LastLookInputAt: number,
-	Recentering: boolean,
+	-- Yaw being recentered to, captured when the recenter starts (nil when not recentering).
+	RecenterYaw: number?,
 	CFrame: CFrame,
 }
 
@@ -84,7 +85,7 @@ function CameraRig.new(rig: Rig.Rig, lockOn: LockOn.LockOn): CameraRig
 		Shoulder = 1,
 		ShoulderTarget = 1,
 		LastLookInputAt = os.clock(),
-		Recentering = false,
+		RecenterYaw = nil,
 		CFrame = CFrame.identity,
 	}
 	self.Focus = getRawFocus(self)
@@ -121,7 +122,7 @@ function CameraRig.UpdateOrientation(self: Impl, frame: InputFrame, dt: number, 
 
 	local targetPoint = self.LockOn:GetTargetPoint()
 	if targetPoint then
-		self.Recentering = false
+		self.RecenterYaw = nil
 		self.LastLookInputAt = now
 		updateLockedOrientation(self, targetPoint, dt)
 		return
@@ -131,16 +132,18 @@ function CameraRig.UpdateOrientation(self: Impl, frame: InputFrame, dt: number, 
 		self.Yaw = MathUtil.WrapAngle(self.Yaw - frame.LookDelta.X)
 		self.Pitch = math.clamp(self.Pitch + frame.LookDelta.Y, config.MinPitch, config.MaxPitch)
 		self.LastLookInputAt = now
-		self.Recentering = false
+		self.RecenterYaw = nil
 	end
 
 	local recenter = config.Recenter
-	if self.Recentering then
-		local targetYaw = getCharacterYaw(self)
-		self.Yaw = MathUtil.DampAngle(self.Yaw, targetYaw, recenter.Rate, dt)
+	local recenterYaw = self.RecenterYaw
+	if recenterYaw then
+		-- The target is fixed at press time: chasing the live facing while walking never converges, since
+		-- turning the camera turns camera-relative movement and with it the character.
+		self.Yaw = MathUtil.DampAngle(self.Yaw, recenterYaw, recenter.Rate, dt)
 		self.Pitch = MathUtil.Damp(self.Pitch, config.DefaultPitch, recenter.Rate, dt)
-		if math.abs(MathUtil.WrapAngle(targetYaw - self.Yaw)) < 0.01 then
-			self.Recentering = false
+		if math.abs(MathUtil.WrapAngle(recenterYaw - self.Yaw)) < 0.01 then
+			self.RecenterYaw = nil
 		end
 	elseif recenter.AutoWhenIdle and not characterMoving and now - self.LastLookInputAt > recenter.IdleDelay then
 		-- Only while standing still: recentering while moving would steer camera-relative movement in circles.
@@ -258,7 +261,7 @@ function CameraRig.GetCFrame(self: Impl): CFrame
 end
 
 function CameraRig.Recenter(self: Impl)
-	self.Recentering = true
+	self.RecenterYaw = getCharacterYaw(self)
 end
 
 function CameraRig.SwapShoulder(self: Impl)
