@@ -3,5 +3,7 @@
 -- so the server only has supporting work for now.
 
 local LockOnTagger = require(script.LockOnTagger)
+local RagdollService = require(script.RagdollService)
 
 LockOnTagger.Start()
+RagdollService.Start()

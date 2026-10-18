@@ -1,8 +1,12 @@
 --!strict
--- Terminal state. Hands the character back to the default Humanoid so Roblox's death handling runs.
+-- Terminal state. Ragdolls the body and hands the character back to the default Humanoid so Roblox's death
+-- handling (and respawning) runs.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Context = require(script.Parent.Context)
-local StateMachine = require(game:GetService("ReplicatedStorage").Shared.StateMachine)
+local Ragdoll = require(ReplicatedStorage.Shared.Ragdoll)
+local StateMachine = require(ReplicatedStorage.Shared.StateMachine)
 
 type Context = Context.Context
 
@@ -13,7 +17,9 @@ local Dead: StateMachine.State<Context> = {
 		context.Animation:SetLocomotion("None")
 		-- Re-enables Humanoid.EvaluateStateMachine.
 		context.Motor:Destroy()
-		context.Rig:ReleaseCollision()
+		-- Locally first for an instant response; the server repeats it when it sees the death. This client
+		-- simulates its own body, so it adds the colliders.
+		Ragdoll.Activate(context.Rig.Character, true)
 
 		-- The Humanoid doesn't re-check Health when its state machine is re-enabled, and the client owns its
 		-- state: the server only learns of the death (and respawns the player) once the state replicates as Dead.
@@ -25,7 +31,8 @@ local Dead: StateMachine.State<Context> = {
 		end
 	end,
 
-	Update = function(): string?
+	Update = function(context: Context): string?
+		Ragdoll.KeepRootAttached(context.Rig.Character)
 		return nil
 	end,
 }
